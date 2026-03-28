@@ -11,6 +11,7 @@ dist/
 
 # --- Vercel ---
 .vercel
+.github
 
 # --- JavaScript / Node ---
 node_modules/
