@@ -44,3 +44,11 @@ def test_vercel_config_does_not_rewrite_all_api_requests_to_index():
     }
 
     assert bad_rule not in rewrites
+
+
+def test_deploy_workflow_does_not_use_prebuilt_output_for_python_api():
+    workflow_path = ROOT / ".github" / "workflows" / "deploy.yml"
+    text = workflow_path.read_text()
+
+    assert "vercel build --prod" not in text
+    assert "vercel deploy --prebuilt --prod" not in text
