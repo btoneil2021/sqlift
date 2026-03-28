@@ -1,5 +1,4 @@
 name: Vercel Production Deployment
-
 on:
   push:
     branches:
