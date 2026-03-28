@@ -3,17 +3,27 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 jobs:
-  Deploy-Production:
+  deploy-production:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      LIVE_URL: https://cs-5200-project.vercel.app
     steps:
       - uses: actions/checkout@v4
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
       - name: Pull Vercel Environment Information
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
       - name: Deploy Project to Vercel
-        run: vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prod --yes --token="$VERCEL_TOKEN"
+      - name: Smoke test live backend route
+        run: |
+          response="$(curl -fsSL "$LIVE_URL/api/hello")"
+          echo "$response"
+          echo "$response" | grep -q 'Hello from Flask on Vercel!'
