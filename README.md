@@ -14,6 +14,24 @@ Use the direct Postgres connection string from Supabase, for example:
 
 Replace `[YOUR-PASSWORD]` with the actual database password. The backend exposes a database-backed health route at `/api/supabase/health`. It queries the `sqlift` schema and returns a few sample rows from the `user` table so you can confirm the connection is working.
 
+## Wger Import
+
+The scraper and import scripts live in the `web scrapers/` folder.
+
+Run a preview first:
+
+```bash
+python3 "web scrapers/import_wger.py" --dry-run --limit 50
+```
+
+Run the real import after `DATABASE_URL` is set:
+
+```bash
+python3 "web scrapers/import_wger.py" --limit 50
+```
+
+The `--dry-run` flag fetches the wger data and prints a summary without opening a database connection or writing rows.
+
 ## Deployment
 
 This project is deployed to Vercel through GitHub Actions instead of Vercel's Git integration.
