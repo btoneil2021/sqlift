@@ -1,12 +1,7 @@
-from flask import Flask
-
-
-app = Flask(__name__)
-
-
-@app.route("/")
-def home():
-    return {"message": "Backend is running!"}
+try:
+    from .app import app
+except ImportError:  # pragma: no cover - Vercel can import this module as a script.
+    from app import app
 
 
 if __name__ == "__main__":
