@@ -1,44 +1,77 @@
-from functools import lru_cache
 import os
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from supabase import create_client
+import psycopg
+from psycopg.rows import dict_row
 
 
 app = Flask(__name__)
 CORS(app)
 
 
-def _get_supabase_credentials():
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
+def _get_database_url():
+    url = _clean_env_value(
+        os.getenv("DATABASE_URL")
+        or os.getenv("SUPABASE_DATABASE_URL")
+        or os.getenv("POSTGRES_URL")
+    )
 
-    if not url or not key:
+    if not url:
         raise RuntimeError(
-            "Missing Supabase configuration. Set SUPABASE_URL and "
-            "SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY)."
+            "Missing database configuration. Set DATABASE_URL to the Supabase "
+            "direct connection string."
         )
 
-    return url, key
+    if "[YOUR-PASSWORD]" in url:
+        raise RuntimeError(
+            "DATABASE_URL still contains [YOUR-PASSWORD]. Replace it with the "
+            "real Supabase postgres password."
+        )
+
+    return url
 
 
-@lru_cache(maxsize=1)
-def get_supabase_client():
-    url, key = _get_supabase_credentials()
-    return create_client(url, key)
+def _clean_env_value(value):
+    if value is None:
+        return None
+
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        return value[1:-1]
+    return value
+
+
+def get_database_url():
+    return _get_database_url()
 
 
 def fetch_sample_users(limit=3):
-    response = (
-        get_supabase_client()
-        .schema("sqlift")
-        .from_("user")
-        .select("user_id, username, email")
-        .limit(limit)
-        .execute()
-    )
-    return response.data
+    database_url = get_database_url()
+
+    with psycopg.connect(database_url, sslmode="require") as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                'SELECT user_id, username, email FROM sqlift."user" '
+                "ORDER BY user_id LIMIT %s",
+                (limit,),
+            )
+            return cur.fetchall()
+
+
+def postgres_error_hint(exc):
+    message = str(exc)
+    if "password authentication failed" in message.lower():
+        return (
+            "Double-check the Supabase postgres password in DATABASE_URL and "
+            "make sure it is the direct database connection string."
+        )
+    if "relation" in message.lower() and '"user"' in message:
+        return (
+            "The sqlift schema or user table is missing. Re-run the SQL setup "
+            "and confirm the table names match the schema."
+        )
+    return None
 
 
 @app.route("/")
@@ -57,12 +90,13 @@ def supabase_health():
     try:
         users = fetch_sample_users()
     except Exception as exc:
-        app.logger.exception("Supabase health check failed")
+        app.logger.exception("Database health check failed")
         return jsonify(
             status="error",
             connected=False,
-            message="Could not reach Supabase.",
+            message="Could not reach the database.",
             error=str(exc),
+            hint=postgres_error_hint(exc),
         ), 500
 
     return jsonify(

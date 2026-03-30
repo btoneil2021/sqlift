@@ -2,14 +2,17 @@
 
 ## Supabase
 
-This project talks to Supabase through the Flask backend, not directly from the browser.
+This project talks to the Supabase Postgres database through the Flask backend, not directly from the browser.
 
 Set these environment variables locally and in Vercel:
 
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_KEY`
+- `DATABASE_URL`
 
-The backend exposes a database-backed health route at `/api/supabase/health`. It queries the `sqlift` schema and returns a few sample rows from the `user` table so you can confirm the connection is working.
+Use the direct Postgres connection string from Supabase, for example:
+
+`postgresql://postgres:[YOUR-PASSWORD]@db.llogioyvqexdoyvqqtti.supabase.co:5432/postgres`
+
+Replace `[YOUR-PASSWORD]` with the actual database password. The backend exposes a database-backed health route at `/api/supabase/health`. It queries the `sqlift` schema and returns a few sample rows from the `user` table so you can confirm the connection is working.
 
 ## Deployment
 
@@ -27,6 +30,6 @@ Required GitHub secrets:
 - `VERCEL_ORG_ID`
 - `VERCEL_PROJECT_ID`
 
-Set the Supabase variables in the Vercel project environment settings instead. The deploy workflow pulls them from Vercel during deployment.
+Set `DATABASE_URL` in the Vercel project environment settings instead. The deploy workflow pulls it from Vercel during deployment.
 
 The repo can stay private. Teammates only need GitHub write access so their pushes can trigger the workflow.
