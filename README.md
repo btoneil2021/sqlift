@@ -16,7 +16,7 @@ Replace `[YOUR-PASSWORD]` with the actual database password. The backend exposes
 
 ## Wger Import
 
-The scraper and import scripts live in the `web scrapers/` folder.
+The scraper and import scripts live in the `web-scrapers/` folder.
 
 Run a preview first:
 
