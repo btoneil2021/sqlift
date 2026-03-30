@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 def _load_fetch_module():
-    module_path = Path(__file__).resolve().parents[1] / "web scrapers" / "wger_fetch.py"
+    module_path = Path(__file__).resolve().parents[1] / "web-scrapers" / "wger_fetch.py"
     loader = SourceFileLoader("wger_fetch", str(module_path))
     spec = spec_from_loader(loader.name, loader)
     module = module_from_spec(spec)

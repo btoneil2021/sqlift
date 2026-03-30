@@ -122,6 +122,12 @@ def _build_muscle_bucket_map(muscles, bucket_id_map, normalize_func):
     return muscle_map
 
 
+def _related_item_id(value):
+    if isinstance(value, dict):
+        return value.get("id")
+    return value
+
+
 def _build_summary(dataset, bucket_id_map=None):
     bucket_id_map = bucket_id_map or build_bucket_id_map()
     muscles = dataset.get("muscles", [])
@@ -158,7 +164,8 @@ def _build_summary(dataset, bucket_id_map=None):
         exercise_id = item.get("id")
         if exercise_id not in inserted_exercises:
             continue
-        for muscle_id in item.get("muscles", []) or []:
+        for muscle_entry in item.get("muscles", []) or []:
+            muscle_id = _related_item_id(muscle_entry)
             if muscle_id is None:
                 summary["skipped_missing_muscle"].append(
                     {"exercise_id": exercise_id, "muscle_id": None}
@@ -169,7 +176,8 @@ def _build_summary(dataset, bucket_id_map=None):
                     {"exercise_id": exercise_id, "muscle_id": muscle_id}
                 )
 
-        for muscle_id in item.get("muscles_secondary", []) or []:
+        for muscle_entry in item.get("muscles_secondary", []) or []:
+            muscle_id = _related_item_id(muscle_entry)
             if muscle_id is None:
                 summary["skipped_missing_muscle"].append(
                     {"exercise_id": exercise_id, "muscle_id": None}
@@ -180,7 +188,8 @@ def _build_summary(dataset, bucket_id_map=None):
                     {"exercise_id": exercise_id, "muscle_id": muscle_id}
                 )
 
-        for equipment_id in item.get("equipment", []) or []:
+        for equipment_entry in item.get("equipment", []) or []:
+            equipment_id = _related_item_id(equipment_entry)
             if equipment_id is None:
                 summary["skipped_missing_equipment"].append(
                     {"exercise_id": exercise_id, "equipment_id": None}
@@ -268,7 +277,8 @@ def write_dataset(conn, dataset, bucket_id_map=None):
             if exercise_id not in inserted_exercises:
                 continue
             seen_bucket_ids = set()
-            for muscle_id in item.get("muscles", []) or []:
+            for muscle_entry in item.get("muscles", []) or []:
+                muscle_id = _related_item_id(muscle_entry)
                 if muscle_id is None:
                     summary["skipped_missing_muscle"].append(
                         {"exercise_id": exercise_id, "muscle_id": None}
@@ -287,7 +297,8 @@ def write_dataset(conn, dataset, bucket_id_map=None):
                 )
                 seen_bucket_ids.add(bucket_id)
 
-            for muscle_id in item.get("muscles_secondary", []) or []:
+            for muscle_entry in item.get("muscles_secondary", []) or []:
+                muscle_id = _related_item_id(muscle_entry)
                 if muscle_id is None:
                     summary["skipped_missing_muscle"].append(
                         {"exercise_id": exercise_id, "muscle_id": None}
@@ -310,7 +321,8 @@ def write_dataset(conn, dataset, bucket_id_map=None):
             exercise_id = item.get("id")
             if exercise_id not in inserted_exercises:
                 continue
-            for equipment_id in item.get("equipment", []) or []:
+            for equipment_entry in item.get("equipment", []) or []:
+                equipment_id = _related_item_id(equipment_entry)
                 if equipment_id is None:
                     summary["skipped_missing_equipment"].append(
                         {"exercise_id": exercise_id, "equipment_id": None}

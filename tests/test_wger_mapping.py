@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 def _load_mapping_module():
-    module_path = Path(__file__).resolve().parents[1] / "web scrapers" / "wger_mapping.py"
+    module_path = Path(__file__).resolve().parents[1] / "web-scrapers" / "wger_mapping.py"
     loader = SourceFileLoader("wger_mapping", str(module_path))
     spec = spec_from_loader(loader.name, loader)
     module = module_from_spec(spec)

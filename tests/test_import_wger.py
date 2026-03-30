@@ -5,7 +5,7 @@ from pathlib import Path
 
 def _load_import_module():
     module_path = (
-        Path(__file__).resolve().parents[1] / "web scrapers" / "import_wger.py"
+        Path(__file__).resolve().parents[1] / "web-scrapers" / "import_wger.py"
     )
     loader = SourceFileLoader("import_wger", str(module_path))
     spec = spec_from_loader(loader.name, loader)
@@ -155,3 +155,46 @@ def test_import_wger_dry_run_avoids_database(monkeypatch):
 
     assert summary["skipped_missing_translation"] == [{"exercise_id": 301}]
     assert len(summary["skipped_missing_id"]) == 1
+
+
+def test_import_wger_handles_wger_related_objects(monkeypatch):
+    dataset = {
+        "muscles": [
+            {"id": 1, "name": "Pectoralis major", "name_en": "Chest"},
+            {"id": 2, "name": "Biceps brachii", "name_en": ""},
+        ],
+        "equipment": [
+            {"id": 10, "name": "Barbell"},
+            {"id": 11, "name": "Bench"},
+        ],
+        "exerciseinfo": [
+            {
+                "id": 401,
+                "muscles": [{"id": 1, "name": "Pectoralis major"}],
+                "muscles_secondary": [{"id": 2, "name": "Biceps brachii"}],
+                "equipment": [{"id": 10, "name": "Barbell"}, {"id": None}],
+            }
+        ],
+        "translations": [
+            {
+                "exercise": 401,
+                "name": "Bench Press",
+                "description": "Classic press.",
+            }
+        ],
+    }
+
+    def fake_fetch_dataset(session=None, limit=None, max_pages=None):
+        return dataset
+
+    monkeypatch.setattr(import_wger, "fetch_dataset", fake_fetch_dataset)
+
+    summary = import_wger.import_wger(
+        database_url="postgresql://example",
+        dry_run=True,
+    )
+
+    assert summary["skipped_missing_translation"] == []
+    assert summary["skipped_missing_id"] == []
+    assert summary["skipped_missing_muscle"] == []
+    assert summary["skipped_missing_equipment"] == [{"exercise_id": 401, "equipment_id": None}]
