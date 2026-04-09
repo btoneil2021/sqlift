@@ -31,7 +31,7 @@ CREATE TYPE set_type AS ENUM (
 
 
 CREATE TABLE "user" (
-  user_id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   username TEXT NOT NULL,
   first_name TEXT NOT NULL,
   last_name TEXT NOT NULL,
@@ -72,7 +72,7 @@ CREATE TABLE measurement_log (
 
 
 CREATE TABLE achievement (
-  achievement_id BIGSERIAL PRIMARY KEY,
+  achievement_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name TEXT NOT NULL,
   description TEXT,
   achievement_img_url TEXT
@@ -80,7 +80,7 @@ CREATE TABLE achievement (
 
 
 CREATE TABLE user_goal (
-  goal_id BIGSERIAL PRIMARY KEY,
+  goal_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id BIGINT NOT NULL,
   description TEXT NOT NULL,
   target_date DATE,
@@ -92,8 +92,8 @@ CREATE TABLE user_goal (
 
 
 CREATE TABLE user_achievement (
-  user_id BIGSERIAL NOT NULL,
-  achievement_id BIGSERIAL NOT NULL,
+  user_id BIGINT NOT NULL,
+  achievement_id BIGINT NOT NULL,
   date_earned DATE,
   PRIMARY KEY (user_id, achievement_id),
 
@@ -104,8 +104,8 @@ CREATE TABLE user_achievement (
 
 
 CREATE TABLE user_friendship (
-  user_id BIGSERIAL NOT NULL,
-  friend_user_id BIGSERIAL NOT NULL,
+  user_id BIGINT NOT NULL,
+  friend_user_id BIGINT NOT NULL,
   friendship_level friendship_level,
   PRIMARY KEY (user_id, friend_user_id),
 
@@ -119,11 +119,12 @@ CREATE TABLE user_friendship (
 
 
 CREATE TABLE workout (
-  workout_id BIGSERIAL PRIMARY KEY,
+  workout_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   user_id BIGINT NOT NULL,
   name TEXT NOT NULL,
   preferred_day TEXT,
   UNIQUE (user_id, name),
+  UNIQUE (user_id, workout_id),
 
 
   FOREIGN KEY (user_id) REFERENCES "user"(user_id) ON DELETE CASCADE
@@ -137,7 +138,7 @@ CREATE TABLE workout_tag (
 
 
 CREATE TABLE workout_tag_assignment (
-  workout_id BIGSERIAL NOT NULL,
+  workout_id BIGINT NOT NULL,
   tag_name TEXT NOT NULL,
   PRIMARY KEY (workout_id, tag_name),
 
@@ -148,8 +149,8 @@ CREATE TABLE workout_tag_assignment (
 
 
 CREATE TABLE workout_session (
-  workout_session_id BIGINT PRIMARY KEY,
-  workout_id BIGSERIAL NOT NULL,
+  workout_session_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  workout_id BIGINT NOT NULL,
   start_date_time TIMESTAMP NOT NULL,
   end_date_time TIMESTAMP,
   notes TEXT,
@@ -162,12 +163,15 @@ CREATE TABLE workout_session (
   UNIQUE (workout_id, start_date_time),
 
 
-  FOREIGN KEY (workout_id) REFERENCES workout(workout_id) ON DELETE CASCADE
+  FOREIGN KEY (workout_id) REFERENCES workout(workout_id) ON DELETE CASCADE,
+  CHECK (difficulty_rating >= 0 AND difficulty_rating <= 10),
+  CHECK (enjoyment_rating >= 0 AND enjoyment_rating <= 10),
+  CHECK (energy_level_rating >= 0 AND energy_level_rating <= 10)
 );
 
 
 CREATE TABLE exercise (
-  exercise_id BIGSERIAL PRIMARY KEY,
+  exercise_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name TEXT NOT NULL,
   description TEXT,
   is_unilateral BOOLEAN NOT NULL DEFAULT FALSE,
@@ -176,23 +180,29 @@ CREATE TABLE exercise (
 
 
 CREATE TABLE workout_exercise (
-  workout_id BIGSERIAL NOT NULL ,
+  workout_id BIGINT NOT NULL,
   sort_order INTEGER NOT NULL,
-  exercise_id BIGSERIAL NOT NULL,
+  exercise_id BIGINT NOT NULL,
   target_sets INTEGER,
   target_reps INTEGER,
   target_weight DECIMAL(8,2),
   expected_rest_time INTERVAL,
   PRIMARY KEY (workout_id, sort_order),
+  UNIQUE (workout_id, exercise_id),
 
 
   FOREIGN KEY (workout_id) REFERENCES workout(workout_id) ON DELETE CASCADE,
-  FOREIGN KEY (exercise_id) REFERENCES exercise(exercise_id) ON DELETE CASCADE
+  FOREIGN KEY (exercise_id) REFERENCES exercise(exercise_id) ON DELETE CASCADE,
+
+  CHECK (sort_order > 0),
+  CHECK (target_sets > 0),
+  CHECK (target_reps > 0),
+  CHECK (target_weight >= 0)
 );
 
 
 CREATE TABLE equipment (
-  equipment_id BIGSERIAL PRIMARY KEY,
+  equipment_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name TEXT NOT NULL,
   description TEXT,
 
@@ -202,8 +212,8 @@ CREATE TABLE equipment (
 
 
 CREATE TABLE exercise_equipment (
-  exercise_id BIGSERIAL NOT NULL,
-  equipment_id BIGSERIAL NOT NULL,
+  exercise_id BIGINT NOT NULL,
+  equipment_id BIGINT NOT NULL,
   PRIMARY KEY (exercise_id, equipment_id),
 
 
@@ -214,7 +224,7 @@ CREATE TABLE exercise_equipment (
 
 CREATE TABLE media (
   url TEXT PRIMARY KEY,
-  exercise_id BIGSERIAL,
+  exercise_id BIGINT,
   type TEXT NOT NULL,
 
 
@@ -223,7 +233,7 @@ CREATE TABLE media (
 
 
 CREATE TABLE muscle_group (
-  muscle_id BIGSERIAL PRIMARY KEY,
+  muscle_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name TEXT NOT NULL,
   description TEXT,
 
@@ -233,8 +243,8 @@ CREATE TABLE muscle_group (
 
 
 CREATE TABLE exercise_muscle_group (
-  exercise_id BIGSERIAL NOT NULL,
-  muscle_id BIGSERIAL NOT NULL,
+  exercise_id BIGINT NOT NULL,
+  muscle_id BIGINT NOT NULL,
   role muscle_role,
   PRIMARY KEY (exercise_id, muscle_id),
 
@@ -245,24 +255,24 @@ CREATE TABLE exercise_muscle_group (
 
 
 CREATE TABLE record_log (
-  record_log_id BIGINT PRIMARY KEY,
-  workout_session_id BIGSERIAL NOT NULL,
-  exercise_id BIGSERIAL NOT NULL,
+  record_log_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  workout_session_id BIGINT NOT NULL,
+  exercise_id BIGINT NOT NULL,
   number INTEGER NOT NULL,
   "timestamp" TIMESTAMP NOT NULL,
   duration INTERVAL,
 
 
-  UNIQUE (number, workout_session_id),
-
-
+  UNIQUE (workout_session_id, number),
   FOREIGN KEY (workout_session_id) REFERENCES workout_session(workout_session_id) ON DELETE CASCADE,
-  FOREIGN KEY (exercise_id) REFERENCES exercise(exercise_id) ON DELETE CASCADE
+  FOREIGN KEY (exercise_id) REFERENCES exercise(exercise_id) ON DELETE CASCADE,
+
+  CHECK (number > 0)
 );
 
 
 CREATE TABLE set_log (
-  set_log_id BIGSERIAL PRIMARY KEY,
+  set_log_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   record_log_id BIGINT NOT NULL,
   number INTEGER NOT NULL,
   type set_type,
@@ -273,5 +283,10 @@ CREATE TABLE set_log (
   UNIQUE (record_log_id, number),
 
 
-  FOREIGN KEY (record_log_id) REFERENCES record_log(record_log_id) ON DELETE CASCADE
+  FOREIGN KEY (record_log_id) REFERENCES record_log(record_log_id) ON DELETE CASCADE,
+
+  CHECK (number > 0),
+  CHECK (weight >= 0),
+  CHECK (reps > 0),
+  CHECK (rpe >= 0 AND rpe <= 10)
 );
