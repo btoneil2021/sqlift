@@ -381,3 +381,82 @@ BEGIN
     RETURN p_workout_id;
 END;
 $$;
+
+CREATE OR REPLACE FUNCTION fn_delete_workout(
+    p_user_id BIGINT,
+    p_workout_id BIGINT
+)
+LANGUAGE sql
+AS $$
+    DELETE FROM workout
+    WHERE workout_id = p_workout_id
+        AND user_id = p_user_id;
+$$;
+
+CREATE OR REPLACE FUNCTION fn_start_workout_session(
+    p_user_id BIGINT,
+    p_workout_id BIGINT
+)
+RETURNS BIGINT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    return_new_session_id BIGINT;
+BEGIN
+    SELECT ws.workout_session_id
+    INTO return_new_session_id
+    FROM workout_session ws
+    INNER JOIN workout w
+        ON w.workout_id = ws.workout_id
+    WHERE w.user_id = p_user_id
+        AND w.workout_id = p_workout_id
+        AND ws.completion_status = 'In Progress'
+    ORDER BY ws.start_date_time DESC
+    LIMIT 1;
+
+    IF return_new_session_id IS NOT NULL THEN
+        RETURN return_new_session_id;
+    END IF;
+
+    INSERT INTO workout_session (
+        workout_id,
+        start_date_time,
+        completion_status
+    )
+    VALUES (
+        p_workout_id,
+        NOW(),
+        'In Progress'
+    )
+    RETURNING workout_session_id INTO return_new_session_id;
+
+    RETURN return_new_session_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION fn_get_in_progress_session_for_workout(
+    p_user_id BIGINT,
+    p_workout_id BIGINT
+)
+RETURNS TABLE (
+    workout_session_id BIGINT,
+    start_date_time TIMESTAMP,
+    end_date_time TIMESTAMP,
+    completion_status workout_session_status
+)
+LANGUAGE sql
+AS $$
+    SELECT
+        ws.workout_session_id,
+        ws.start_date_time,
+        ws.end_date_time,
+        ws.completion_status
+    FROM workout_session ws
+    INNER JOIN workout w
+        ON w.workout_id = ws.workout_id
+    WHERE w.user_id = p_user_id
+        AND w.workout_id = p_workout_id
+        AND ws.completion_status = 'In Progress'
+    ORDER BY ws.start_date_time DESC
+    LIMIT 1
+$$;
