@@ -59,7 +59,7 @@ AS $$
         wt.name AS tag_name, 
         wt.color_code AS color_code
     FROM workout_tag wt
-    ORDER BY wt.name DESC
+    ORDER BY wt.name ASC
 $$;
 
 CREATE OR REPLACE FUNCTION fn_search_exercise_library(
@@ -79,12 +79,12 @@ AS $$
         p_search_text IS NULL
         OR btrim(p_search_text) = ''
         OR e.name ILIKE '%' || btrim(p_search_text) || '%'
-    ORDER BY e.name DESC
+    ORDER BY e.name ASC
 $$;
 
 CREATE OR REPLACE FUNCTION fn_get_workout_header(
-    user_id BIGINT,
-    workout_id BIGINT
+    p_user_id BIGINT,
+    p_workout_id BIGINT
 )
 RETURNS TABLE (
     workout_id BIGINT,
@@ -100,8 +100,8 @@ AS $$
         w.preferred_day,
         fn_compute_workout_primary_muscle_group(w.workout_id) AS primary_muscle_group
     FROM workout w
-    WHERE w.user_id = user_id
-        AND w.workout_id = workout_id
+    WHERE w.user_id = p_user_id
+        AND w.workout_id = p_workout_id
 $$;
 
 CREATE OR REPLACE FUNCTION fn_get_workout_tags(
@@ -124,7 +124,7 @@ AS $$
         ON wta.workout_id = w.workout_id
     WHERE w.user_id = p_user_id
         AND w.workout_id = p_workout_id
-    ORDER BY wt.name DESC
+    ORDER BY wt.name ASC
 $$;
 
 CREATE OR REPLACE FUNCTION fn_get_workout_exercises(
@@ -157,7 +157,7 @@ AS $$
         ON e.exercise_id = we.exercise_id
     WHERE w.user_id = p_user_id
         AND w.workout_id = p_workout_id
-    ORDER BY we.sort_order DESC
+    ORDER BY we.sort_order ASC
 $$;
 
 CREATE OR REPLACE FUNCTION fn_get_workout_history(
@@ -234,7 +234,6 @@ AS $$
     FROM workout w
     WHERE w.user_id = p_user_id
         AND w.workout_id = p_workout_id;
-END;
 $$;
 
 CREATE OR REPLACE FUNCTION fn_get_new_workout_reference_data()
@@ -250,7 +249,7 @@ AS $$
                         'tag_name', wt.name,
                         'color_code', wt.color_code
                     )
-                    ORDER BY wt.name
+                    ORDER BY wt.name ASC
                 )
                 FROM workout_tag wt
             ),
@@ -265,7 +264,7 @@ AS $$
                         'muscle_group_name', mg.name,
                         'description', mg.description
                     )
-                    ORDER BY mg.name
+                    ORDER BY mg.name ASC
                 )
                 FROM muscle_group mg
             ),
@@ -280,7 +279,7 @@ AS $$
                         'equipment_name', e.name,
                         'description', e.description
                     )
-                    ORDER BY e.name
+                    ORDER BY e.name ASC
                 )
                 FROM equipment e
             ),
@@ -315,5 +314,70 @@ BEGIN
     FROM jsonb_array_elements(p_tags_json) wt_json;
 
     RETURN return_workout_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION fn_update_workout_full(
+    p_user_id BIGINT,
+    p_workout_id BIGINT,
+    p_name TEXT,
+    p_preferred_day TEXT,
+    p_exercises_json JSONB,
+    p_tags_json JSONB
+)
+RETURNS BIGINT
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE workout
+    SET
+        name = btrim(p_name),
+        preferred_day = NULLIF(btrim(p_preferred_day), '')
+    WHERE workout_id = p_workout_id
+        AND user_id = p_user_id;
+
+    DELETE FROM workout_exercise
+    WHERE workout_id = p_workout_id;
+
+    INSERT INTO workout_exercise (
+        workout_id,
+        sort_order,
+        exercise_id,
+        target_sets,
+        target_reps,
+        target_weight,
+        expected_rest_time
+    )
+    SELECT
+        p_workout_id,
+        (e_json ->> 'sort_order')::INTEGER,
+        (e_json ->> 'exercise_id')::BIGINT,
+        NULLIF(e_json ->> 'target_sets', '')::INTEGER,
+        NULLIF(e_json ->> 'target_reps', '')::INTEGER,
+        NULLIF(e_json ->> 'target_weight', '')::NUMERIC(8,2),
+        NULLIF(e_json ->> 'expected_rest_time', '')::INTERVAL
+    FROM jsonb_array_elements(COALESCE(p_exercises_json, '[]')) e_json
+    ORDER BY (e_json ->> 'sort_order')::INTEGER ASC;
+
+    DELETE FROM workout_tag_assignment
+    WHERE workout_id = p_workout_id;
+
+    INSERT INTO workout_tag_assignment (workout_id, tag_name)
+    SELECT
+        p_workout_id,
+        p.tag_name
+    FROM (
+        SELECT DISTINCT
+            CASE
+                WHEN jsonb_typeof(wt_json) = 'string' THEN wt_json #>> '{}'
+                ELSE wt_json ->> 'name'
+            END AS tag_name
+        FROM jsonb_array_elements(COALESCE(p_tags_json, '[]')) wt_json
+    ) p
+    WHERE p.tag_name IS NOT NULL
+        AND btrim(p.tag_name) = ''
+    ORDER BY p.tag_name ASC;
+
+    RETURN p_workout_id;
 END;
 $$;
