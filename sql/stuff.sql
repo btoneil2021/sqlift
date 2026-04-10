@@ -236,3 +236,84 @@ AS $$
         AND w.workout_id = p_workout_id;
 END;
 $$;
+
+CREATE OR REPLACE FUNCTION fn_get_new_workout_reference_data()
+RETURNS JSONB
+LANGUAGE sql
+AS $$
+    SELECT jsonb_build_object(
+        'tags',
+        COALESCE(
+            (
+                SELECT jsonb_agg(
+                    jsonb_build_object(
+                        'tag_name', wt.name,
+                        'color_code', wt.color_code
+                    )
+                    ORDER BY wt.name
+                )
+                FROM workout_tag wt
+            ),
+            '[]'
+        ),
+        'muscle_groups',
+        COALESCE(
+            (
+                SELECT jsonb_agg(
+                    jsonb_build_object(
+                        'muscle_id', mg.muscle_id,
+                        'muscle_group_name', mg.name,
+                        'description', mg.description
+                    )
+                    ORDER BY mg.name
+                )
+                FROM muscle_group mg
+            ),
+            '[]'
+        ),
+        'equipment',
+        COALESCE(
+            (
+                SELECT jsonb_agg(
+                    jsonb_build_object(
+                        'equipment_id', e.equipment_id,
+                        'equipment_name', e.name,
+                        'description', e.description
+                    )
+                    ORDER BY e.name
+                )
+                FROM equipment e
+            ),
+            '[]'
+        )
+    )
+$$;
+
+CREATE OR REPLACE FUNCTION fn_create_workout_full(
+    p_user_id BIGINT,
+    p_name TEXT,
+    p_preferred_day TEXT,
+    p_exercises_json JSONB,
+    p_tags_json JSONB
+)
+RETURNS BIGINT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    return_workout_id BIGINT;
+BEGIN
+    INSERT INTO workout (user_id, name, preferred_day)
+    VALUES (p_user_id, p_name, p_preferred_day)
+    RETURNING workout_id INTO return_workout_id;
+
+    INSERT INTO workout_exercise (workout_id, sort_order, exercise_id)
+    SELECT return_workout_id, (e_json ->> 'sort_order')::INTEGER, (e_json ->> 'exercise_id')::BIGINT
+    FROM jsonb_array_elements(p_exercises_json) e_json;
+
+    INSERT INTO workout_tag_assignment (workout_id, tag_name)
+    SELECT return_workout_id, wt_json ->> 'name'
+    FROM jsonb_array_elements(p_tags_json) wt_json;
+
+    RETURN return_workout_id;
+END;
+$$;
