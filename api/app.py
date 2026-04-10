@@ -10,7 +10,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-in-production")
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+CORS(app, supports_credentials=True)
 
 from api.utils import limiter
 limiter.init_app(app)
@@ -22,8 +25,12 @@ def home():
 
 
 from api.home import home_bp
+from api.profile import profile_bp
+from api.auth import auth_bp
 
 app.register_blueprint(home_bp)
+app.register_blueprint(profile_bp)
+app.register_blueprint(auth_bp)
 
 
 

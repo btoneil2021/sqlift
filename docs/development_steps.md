@@ -40,22 +40,22 @@ Ensure you have the following installed:
 
 ## 2. Running Locally
 
-To run the full stack locally, you need two terminals open:
+To run the full stack locally, we use `concurrently` to start both the Flask backend and Vite frontend in a single terminal.
 
-### Terminal A: Backend (Flask)
+### Single Command (Recommended)
 ```bash
 # From the root directory
-python api/app.py
-```
-Backend will run at `http://127.0.0.1:5328`.
-
-### Terminal B: Frontend (Vite)
-```bash
-# From the root directory
-cd frontend
 npm run dev
 ```
-Frontend will run at `http://localhost:5173`.
+
+This will:
+1. Start the **Backend** (Flask) at `http://127.0.0.1:5328`.
+2. Start the **Frontend** (Vite) at `http://localhost:5173`.
+
+### Manual (Legacy)
+If you prefer separate terminals, you can still run:
+- **Backend**: `python api/app.py`
+- **Frontend**: `cd frontend && npm run dev`
 
 
 ## 3. Adding Pages (Frontend)

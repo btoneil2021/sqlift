@@ -7,10 +7,25 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_limiter.errors import RateLimitExceeded
 
+# ── Config ────────────────────────────────────────────────────────────────────
+
+DB_SCHEMA = "sqlift"          # Postgres schema all tables live in
+DB_SSL_MODE = "require"       # SSL mode for psycopg connections
+RATE_LIMIT_DEFAULT = "40 per minute"
+RATE_LIMIT_STORAGE = "memory://"  # swap to "redis://..." for multi-process
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def tbl(name: str) -> str:
+    """Return a fully-qualified, quoted table identifier for the configured schema."""
+    return f'{DB_SCHEMA}."{name}"'
+
+
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=["40 per minute"],
-    storage_uri="memory://",
+    default_limits=[RATE_LIMIT_DEFAULT],
+    storage_uri=RATE_LIMIT_STORAGE,
 )
 
 def _clean_env_value(value):
@@ -48,8 +63,7 @@ def get_database_url():
 def fetch_sample_users(conn, limit=3):
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            'SELECT user_id, username, email FROM sqlift."user" '
-            "ORDER BY user_id LIMIT %s",
+            f"SELECT user_id, username, email FROM {tbl('user')} ORDER BY user_id LIMIT %s",
             (limit,),
         )
         return cur.fetchall()
@@ -69,7 +83,7 @@ def postgres_error_hint(exc):
         )
     if "relation" in message.lower() and '"user"' in message:
         return (
-            "The sqlift schema or user table is missing. Re-run the SQL setup "
+            f'The {DB_SCHEMA} schema or user table is missing. Re-run the SQL setup '
             "and confirm the table names match the schema."
         )
     return "An error occurred while connecting to the database."
@@ -84,7 +98,7 @@ def api_route(limit=None):
         def wrapper(*args, **kwargs):
             try:
                 database_url = get_database_url()
-                with psycopg.connect(database_url, sslmode="require") as conn:
+                with psycopg.connect(database_url, sslmode=DB_SSL_MODE) as conn:
                     return decorated_f(conn, *args, **kwargs)
             except RateLimitExceeded as exc:
                 return jsonify(
