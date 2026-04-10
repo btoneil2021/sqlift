@@ -164,6 +164,8 @@ CREATE TABLE workout_session (
 
 
   FOREIGN KEY (workout_id) REFERENCES workout(workout_id) ON DELETE CASCADE,
+
+  
   CHECK (difficulty_rating >= 0 AND difficulty_rating <= 10),
   CHECK (enjoyment_rating >= 0 AND enjoyment_rating <= 10),
   CHECK (energy_level_rating >= 0 AND energy_level_rating <= 10)

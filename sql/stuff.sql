@@ -241,6 +241,7 @@ RETURNS JSONB
 LANGUAGE sql
 AS $$
     SELECT jsonb_build_object(
+        -- Aggregates and builds a new array of objects for the workout tags.
         'tags',
         COALESCE(
             (
@@ -255,6 +256,7 @@ AS $$
             ),
             '[]'
         ),
+        -- Aggregates and builds a new array of objects for the muscle groups
         'muscle_groups',
         COALESCE(
             (
@@ -270,6 +272,7 @@ AS $$
             ),
             '[]'
         ),
+        -- Aggregates and builds a new array of objects for the equipment
         'equipment',
         COALESCE(
             (
@@ -301,18 +304,22 @@ AS $$
 DECLARE
     return_workout_id BIGINT;
 BEGIN
+    -- Create the new workout
     INSERT INTO workout (user_id, name, preferred_day)
     VALUES (p_user_id, p_name, p_preferred_day)
     RETURNING workout_id INTO return_workout_id;
 
+    -- Insert new workout_exercise rows where connects
     INSERT INTO workout_exercise (workout_id, sort_order, exercise_id)
     SELECT return_workout_id, (e_json ->> 'sort_order')::INTEGER, (e_json ->> 'exercise_id')::BIGINT
     FROM jsonb_array_elements(p_exercises_json) e_json;
 
+    -- Insert new workout_tag_assignment rows where it connects
     INSERT INTO workout_tag_assignment (workout_id, tag_name)
     SELECT return_workout_id, wt_json ->> 'name'
     FROM jsonb_array_elements(p_tags_json) wt_json;
 
+    -- Return new workout ID
     RETURN return_workout_id;
 END;
 $$;
@@ -329,6 +336,7 @@ RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 BEGIN
+    -- Update workout header that belongs to the provided user
     UPDATE workout
     SET
         name = btrim(p_name),
@@ -336,9 +344,11 @@ BEGIN
     WHERE workout_id = p_workout_id
         AND user_id = p_user_id;
 
+    -- Delete existing workout_exercise rows for the workout
     DELETE FROM workout_exercise
     WHERE workout_id = p_workout_id;
 
+    -- Insert new set of workout_exercise rows given the updated values for that workout
     INSERT INTO workout_exercise (
         workout_id,
         sort_order,
@@ -359,25 +369,25 @@ BEGIN
     FROM jsonb_array_elements(COALESCE(p_exercises_json, '[]')) e_json
     ORDER BY (e_json ->> 'sort_order')::INTEGER ASC;
 
+    -- Delete existing tag assignments from the old workout
     DELETE FROM workout_tag_assignment
     WHERE workout_id = p_workout_id;
 
+    -- Add replacement tag assignments to the new workout
     INSERT INTO workout_tag_assignment (workout_id, tag_name)
     SELECT
         p_workout_id,
         p.tag_name
     FROM (
         SELECT DISTINCT
-            CASE
-                WHEN jsonb_typeof(wt_json) = 'string' THEN wt_json #>> '{}'
-                ELSE wt_json ->> 'name'
-            END AS tag_name
+            wt_json ->> 'name' AS tag_name
         FROM jsonb_array_elements(COALESCE(p_tags_json, '[]')) wt_json
     ) p
     WHERE p.tag_name IS NOT NULL
-        AND btrim(p.tag_name) = ''
+        AND btrim(p.tag_name) <> ''
     ORDER BY p.tag_name ASC;
 
+    -- Return the new workout ID
     RETURN p_workout_id;
 END;
 $$;
@@ -403,6 +413,7 @@ AS $$
 DECLARE
     return_new_session_id BIGINT;
 BEGIN
+    -- Get the latest in progress session id
     SELECT ws.workout_session_id
     INTO return_new_session_id
     FROM workout_session ws
@@ -418,6 +429,7 @@ BEGIN
         RETURN return_new_session_id;
     END IF;
 
+    -- If there isn't an in-progress session, make a new in-progress session
     INSERT INTO workout_session (
         workout_id,
         start_date_time,
@@ -459,4 +471,140 @@ AS $$
         AND ws.completion_status = 'In Progress'
     ORDER BY ws.start_date_time DESC
     LIMIT 1
+$$;
+
+CREATE OR REPLACE FUNCTION fn_get_tracking_payload(
+    p_user_id BIGINT,
+    p_workout_session_id BIGINT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    return_json JSONB;
+BEGIN
+    -- Build session object
+    SELECT jsonb_build_object(
+        'session',
+        jsonb_build_object(
+            'workout_session_id', ws.workout_session_id,
+            'workout_id', w.workout_id,
+            'workout_name', w.name,
+            'start_date_time', ws.start_date_time,
+            'end_date_time', ws.end_date_time,
+            'notes', ws.notes,
+            'completion_status', ws.completion_status,
+            'difficulty_rating', ws.difficulty_rating,
+            'enjoyment_rating', ws.enjoyment_rating,
+            'energy_level_rating', ws.energy_level_rating
+        ),
+        -- Build exercises array
+        'planned_exercises',
+        COALESCE(
+            (
+                SELECT jsonb_agg(to_jsonb(pe) ORDER BY pe.sort_order)
+                FROM fn_get_workout_exercises(p_user_id, w.workout_id) pe
+            ),
+            '[]'
+        ),
+        -- Build record_log array
+        'records',
+        COALESCE(
+            (
+                SELECT jsonb_agg(
+                    jsonb_build_object(
+                        'record_log_id', rls.record_log_id,
+                        'exercise_id', rls.exercise_id,
+                        'exercise_name', rls.exercise_name,
+                        'number', rls.number,
+                        'timestamp', rls."timestamp",
+                        'duration', rls.duration,
+                        'set_count', rls.set_count,
+                        -- Build set_log array
+                        'sets',
+                        COALESCE(
+                            (
+                                SELECT jsonb_agg(
+                                    jsonb_build_object(
+                                        'set_log_id', sl.set_log_id,
+                                        'number', sl.number,
+                                        'type', sl.type,
+                                        'weight', sl.weight,
+                                        'reps', sl.reps,
+                                        'rpe', sl.rpe,
+                                        'rest_time', sl.rest_time
+                                    )
+                                    ORDER BY sl.number ASC
+                                )
+                                FROM set_log sl
+                                WHERE sl.record_log_id = rls.record_log_id
+                            ),
+                            '[]'
+                        )
+                    )
+                    ORDER BY rls.number ASC
+                )
+                FROM vw_record_log_summary rls
+                WHERE rls.workout_session_id = ws.workout_session_id
+            ),
+            '[]'
+        )
+    )
+    INTO return_json
+    FROM workout_session ws
+    INNER JOIN workout w
+        ON w.workout_id = ws.workout_id
+    WHERE ws.workout_session_id = p_workout_session_id
+        AND w.user_id = p_user_id;
+
+    RETURN return_json;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION fn_add_record_log(
+    p_user_id BIGINT,
+    p_workout_session_id BIGINT,
+    p_exercise_id BIGINT
+)
+RETURNS TABLE (
+    record_log_id BIGINT,
+    assigned_number INTEGER
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_status TEXT;
+    v_next_number INTEGER;
+    v_record_log_id BIGINT;
+BEGIN
+    -- Get the next available record_log number given the workout_session
+    SELECT COALESCE(MAX(rl.number), 0) + 1
+    INTO v_next_number
+    FROM record_log rl
+    INNER JOIN workout_session ws
+        ON ws.workout_session_id = rl.workout_session_id
+    INNER JOIN workout w
+        ON w.workout_id = ws.workout_id
+    WHERE rl.workout_session_id = p_workout_session_id
+        and w.user_id = p_user_id;
+
+    -- Insert the new record_log in
+    INSERT INTO record_log (
+        workout_session_id,
+        exercise_id,
+        number,
+        "timestamp"
+    )
+    VALUES (
+        p_workout_session_id,
+        p_exercise_id,
+        v_next_number,
+        NOW()
+    )
+    RETURNING record_log.record_log_id INTO v_record_log_id;
+
+    -- Returns the record log ID and the number it is stored in
+    RETURN QUERY
+    SELECT v_record_log_id, v_next_number;
+END;
 $$;
