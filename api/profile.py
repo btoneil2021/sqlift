@@ -1,0 +1,118 @@
+from flask import Blueprint, jsonify, request, session
+from psycopg.rows import dict_row
+import bcrypt
+
+from api.utils import api_route, tbl
+
+profile_bp = Blueprint('profile', __name__)
+
+
+@profile_bp.route("/api/profile/<int:user_id>", methods=["GET"])
+@api_route(limit="30 per minute")
+def get_profile(conn, user_id):
+    if session.get("user_id") != user_id:
+        return jsonify(status="error", message="Not authorized."), 403
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            f"""
+            SELECT user_id, username, first_name, last_name,
+                   height, sex, email, phone_num, profile_pic_url
+            FROM {tbl('user')}
+            WHERE user_id = %s
+            """,
+            (user_id,),
+        )
+        user = cur.fetchone()
+
+    if user is None:
+        return jsonify(status="error", message="User not found."), 404
+
+    return jsonify(status="ok", user=user)
+
+
+@profile_bp.route("/api/profile/<int:user_id>", methods=["PUT"])
+@api_route(limit="10 per minute")
+def update_profile(conn, user_id):
+    if session.get("user_id") != user_id:
+        return jsonify(status="error", message="Not authorized."), 403
+
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify(status="error", message="Request body must be JSON."), 400
+
+    allowed = {"username", "first_name", "last_name", "height", "sex", "email", "phone_num", "profile_pic_url"}
+    updates = {k: v for k, v in data.items() if k in allowed}
+
+    required = {"username", "first_name", "last_name", "email", "phone_num"}
+    missing = [f for f in required if f in updates and not updates[f]]
+    if missing:
+        return jsonify(status="error", message=f"Required fields cannot be empty: {', '.join(missing)}"), 400
+
+    if not updates:
+        return jsonify(status="error", message="No valid fields provided."), 400
+
+    set_clause = ", ".join(f"{col} = %s" for col in updates)
+    values = list(updates.values()) + [user_id]
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            f"""
+            UPDATE {tbl('user')}
+            SET {set_clause}
+            WHERE user_id = %s
+            RETURNING user_id, username, first_name, last_name,
+                      height, sex, email, phone_num, profile_pic_url
+            """,
+            values,
+        )
+        updated = cur.fetchone()
+        conn.commit()
+
+    if updated is None:
+        return jsonify(status="error", message="User not found."), 404
+
+    return jsonify(status="ok", user=updated)
+
+
+@profile_bp.route("/api/profile/<int:user_id>/password", methods=["PUT"])
+@api_route(limit="5 per minute")
+def change_password(conn, user_id):
+    if session.get("user_id") != user_id:
+        return jsonify(status="error", message="Not authorized."), 403
+
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify(status="error", message="Request body must be JSON."), 400
+
+    current_pw = data.get("current_password", "")
+    new_pw = data.get("new_password", "")
+
+    if not current_pw or not new_pw:
+        return jsonify(status="error", message="current_password and new_password are required."), 400
+
+    if len(new_pw) < 6:
+        return jsonify(status="error", message="New password must be at least 6 characters."), 400
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            f'SELECT password FROM {tbl("user")} WHERE user_id = %s',
+            (user_id,),
+        )
+        row = cur.fetchone()
+
+        if row is None:
+            return jsonify(status="error", message="User not found."), 404
+
+        stored_hash = row["password"].encode("utf-8") if isinstance(row["password"], str) else row["password"]
+        if not bcrypt.checkpw(current_pw.encode("utf-8"), stored_hash):
+            return jsonify(status="error", message="Current password is incorrect."), 401
+
+        new_hash = bcrypt.hashpw(new_pw.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        cur.execute(
+            f'UPDATE {tbl("user")} SET password = %s WHERE user_id = %s',
+            (new_hash, user_id),
+        )
+        conn.commit()
+
+    return jsonify(status="ok", message="Password updated successfully.")
