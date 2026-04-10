@@ -1,4 +1,4 @@
-# cs-5200-project
+# cs-5200-project.
 
 ## Supabase
 
