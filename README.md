@@ -50,4 +50,4 @@ Required GitHub secrets:
 
 Set `DATABASE_URL` in the Vercel project environment settings instead. The deploy workflow pulls it from Vercel during deployment.
 
-The repo can stay private. Teammates only need GitHub write access so their pushes can trigger the workflow
+The repo can stay private. Teammates only need GitHub write access so their pushes can trigger the workflow.
