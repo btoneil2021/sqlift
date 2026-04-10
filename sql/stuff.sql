@@ -7,7 +7,7 @@ CREATE OR REPLACE VIEW vw_workout_history_summary AS
         MAX(ws.start_date_time) AS last_started_at,
         MAX(ws.end_date_time) FILTER (WHERE ws.completion_status = 'Completed') AS last_completed_at
     FROM workout w 
-    LEFT JOIN workout_session ws
+    INNER JOIN workout_session ws
         ON w.workout_id = ws.workout_id
     GROUP BY w.workout_id;
 
@@ -22,9 +22,9 @@ CREATE OR REPLACE VIEW vw_record_log_summary AS
         rl.duration AS record_log_duration,
         COALESCE(COUNT(sl.set_log_id), 0) AS set_count
     FROM record_log rl
-    LEFT JOIN set_log sl
+    INNER JOIN set_log sl
         ON rl.record_log_id = sl.record_log_id
-    LEFT JOIN exercise e
+    INNER JOIN exercise e
         ON rl.exercise_id = e.exercise_id
     GROUP BY rl.record_log_id, rl.workout_session_id, e.exercise_id, 
         e.name,rl.number, rl.timestamp, rl.duration;
@@ -59,7 +59,7 @@ AS $$
         wt.name AS tag_name, 
         wt.color_code AS color_code
     FROM workout_tag wt
-    ORDER BY wt.name
+    ORDER BY wt.name DESC
 $$;
 
 CREATE OR REPLACE FUNCTION fn_search_exercise_library(
@@ -79,7 +79,7 @@ AS $$
         p_search_text IS NULL
         OR btrim(p_search_text) = ''
         OR e.name ILIKE '%' || btrim(p_search_text) || '%'
-    ORDER BY e.name
+    ORDER BY e.name DESC
 $$;
 
 CREATE OR REPLACE FUNCTION fn_get_workout_header(
@@ -102,4 +102,60 @@ AS $$
     FROM workout w
     WHERE w.user_id = user_id
         AND w.workout_id = workout_id
+$$;
+
+CREATE OR REPLACE FUNCTION fn_get_workout_tags(
+    p_user_id BIGINT,
+    p_workout_id BIGINT
+)
+RETURNS TABLE (
+    tag_name TEXT,
+    color_code TEXT
+)
+LANGUAGE sql
+AS $$
+    SELECT
+        wt.name AS tag_name,
+        wt.color_code AS color_code
+    FROM workout_tag wt
+    INNER JOIN workout_tag_assignment wta
+        ON wta.tag_name = wt.name
+    INNER JOIN workout w
+        ON wta.workout_id = w.workout_id
+    WHERE w.user_id = p_user_id
+        AND w.workout_id = p_workout_id
+    ORDER BY wt.name DESC
+$$;
+
+CREATE OR REPLACE FUNCTION fn_get_workout_exercises(
+    p_user_id BIGINT,
+    p_workout_id BIGINT
+)
+RETURNS TABLE (
+    workout_exercise_sort_order INTEGER,
+    exercise_id BIGINT,
+    exercise_name TEXT,
+    target_sets INTEGER,
+    target_reps INTEGER,
+    target_weight NUMERIC(8,2),
+    expected_rest_time INTERVAL
+)
+LANGUAGE sql
+AS $$
+    SELECT
+        we.sort_order AS workout_exercise_sort_order,
+        we.exercise_id,
+        e.name AS exercise_name,
+        we.target_sets,
+        we.target_reps,
+        we.target_weight,
+        we.expected_rest_time
+    FROM workout_exercise we
+    INNER JOIN workout w
+        ON w.workout_id = we.workout_id
+    INNER JOIN exercise e
+        ON e.exercise_id = we.exercise_id
+    WHERE w.user_id = p_user_id
+        AND w.workout_id = p_workout_id
+    ORDER BY we.sort_order DESC
 $$;
