@@ -7,7 +7,7 @@ CREATE OR REPLACE VIEW vw_workout_history_summary AS
         MAX(ws.start_date_time) AS last_started_at,
         MAX(ws.end_date_time) FILTER (WHERE ws.completion_status = 'Completed') AS last_completed_at
     FROM workout w 
-    INNER JOIN workout_session ws
+    LEFT JOIN workout_session ws
         ON w.workout_id = ws.workout_id
     GROUP BY w.workout_id;
 
@@ -22,9 +22,9 @@ CREATE OR REPLACE VIEW vw_record_log_summary AS
         rl.duration AS record_log_duration,
         COALESCE(COUNT(sl.set_log_id), 0) AS set_count
     FROM record_log rl
-    INNER JOIN set_log sl
+    LEFT JOIN set_log sl
         ON rl.record_log_id = sl.record_log_id
-    INNER JOIN exercise e
+    LEFT JOIN exercise e
         ON rl.exercise_id = e.exercise_id
     GROUP BY rl.record_log_id, rl.workout_session_id, e.exercise_id, 
         e.name,rl.number, rl.timestamp, rl.duration;
@@ -158,4 +158,81 @@ AS $$
     WHERE w.user_id = p_user_id
         AND w.workout_id = p_workout_id
     ORDER BY we.sort_order DESC
+$$;
+
+CREATE OR REPLACE FUNCTION fn_get_workout_history(
+    p_user_id BIGINT,
+    p_workout_id BIGINT
+)
+RETURNS TABLE (
+    total_sessions BIGINT,
+    completed_sessions BIGINT,
+    in_progress_sessions BIGINT,
+    last_started_at TIMESTAMP,
+    last_completed_at TIMESTAMP,
+    average_difficulty NUMERIC,
+    average_enjoyment NUMERIC,
+    average_energy_level NUMERIC
+)
+LANGUAGE sql
+AS $$
+    SELECT
+        COALESCE(v.total_sessions, 0) AS total_sessions,
+        COALESCE(v.completed_sessions, 0) AS completed_sessions,
+        COALESCE(v.in_progress_sessions, 0) AS in_progress_sessions,
+        v.last_started_at,
+        v.last_completed_at,
+        ROUND(AVG(ws.difficulty_rating), 1) AS average_difficulty,
+        ROUND(AVG(ws.enjoyment_rating), 1) AS average_enjoyment,
+        ROUND(AVG(ws.energy_level_rating), 1) AS average_energy_level
+    FROM vw_workout_history_summary v
+    LEFT JOIN workout w
+        ON w.workout_id = v.workout_id
+    LEFT JOIN workout_session ws
+        ON ws.workout_id = w.workout_id
+    WHERE w.user_id = p_user_id
+        AND w.workout_id = p_workout_id
+    GROUP BY
+        v.total_sessions,
+        v.completed_sessions,
+        v.in_progress_sessions,
+        v.last_started_at,
+        v.last_completed_at
+$$;
+
+CREATE OR REPLACE FUNCTION fn_get_view_workout_payload(
+    p_user_id BIGINT,
+    p_workout_id BIGINT
+)
+RETURNS JSONB
+LANGUAGE sql
+AS $$
+    SELECT jsonb_build_object(
+        'header',
+        COALESCE(
+            (SELECT to_jsonb(wh) FROM fn_get_workout_header(p_user_id, p_workout_id) wh),
+            '{}'
+        ),
+        'tags',
+        COALESCE(
+            (SELECT jsonb_agg(to_jsonb(wt) ORDER BY wt.tag_name)
+             FROM fn_get_workout_tags(p_user_id, p_workout_id) wt),
+            '[]'
+        ),
+        'exercises',
+        COALESCE(
+            (SELECT jsonb_agg(to_jsonb(we) ORDER BY we.sort_order)
+             FROM fn_get_workout_exercises(p_user_id, p_workout_id) we),
+            '[]'
+        ),
+        'history',
+        COALESCE(
+            (SELECT to_jsonb(wh) FROM fn_get_workout_history(p_user_id, p_workout_id) wh),
+            '{}'
+        )
+    )
+    FROM workout w
+    WHERE w.user_id = p_user_id
+        AND w.workout_id = p_workout_id;
+END;
 $$;
