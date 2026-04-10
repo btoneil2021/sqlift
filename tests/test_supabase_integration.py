@@ -59,7 +59,7 @@ def test_postgres_error_hint_explains_placeholder_password_failure():
     )
 
     assert "DATABASE_URL" in hint
-    assert "direct database connection string" in hint
+    assert "DATABASE_PASSWORD" in hint
 
 
 def test_database_url_strips_quotes(monkeypatch):
@@ -92,7 +92,8 @@ def test_fetch_sample_users_queries_sqlift_schema(monkeypatch):
     )
     monkeypatch.setattr(app_module.psycopg, "connect", fake_connect)
 
-    result = app_module.fetch_sample_users(limit=2)
+    url = "postgresql://postgres:secret@db.llogioyvqexdoyvqqtti.supabase.co:5432/postgres"
+    result = app_module.fetch_sample_users(fake_connect(url, "require"), limit=2)
 
     assert calls["database_url"].startswith("postgresql://postgres:secret@")
     assert calls["sslmode"] == "require"
@@ -140,3 +141,21 @@ def test_supabase_health_route_returns_sample_users(monkeypatch):
     assert payload["schema"] == "sqlift"
     assert payload["table"] == "user"
     assert payload["sample_users"] == rows
+
+
+def test_supabase_health_route_rate_limiting(monkeypatch):
+    def fake_connect(database_url, sslmode):
+        return _FakeConnection([], {})
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://user:secret@host:5432/db")
+    monkeypatch.setattr(app_module.psycopg, "connect", fake_connect)
+
+    client = app_module.app.test_client()
+
+    for _ in range(19):
+        response = client.get("/api/supabase/health")
+        assert response.status_code == 200
+
+    response = client.get("/api/supabase/health")
+    assert response.status_code == 429
+    assert "Rate limit exceeded" in response.get_json()["message"]
