@@ -59,24 +59,54 @@ Frontend will run at `http://localhost:5173`.
 
 
 ## 3. Adding Pages (Frontend)
-To add a new page to your React application:
 
-1. Create a new component in `frontend/src/components/` or `frontend/src/pages/`.
-2. Import the component in `frontend/src/App.jsx`.
-3. If using `react-router-dom`, add a new `<Route>` for your page.
+To keep the project organized and simple, we use a **flat structure** for pages. Each page component should be a single `.jsx` file directly in `src/pages/`.
 
-**Example Page Component:**
-```jsx
-// frontend/src/pages/MyNewPage.jsx
-export default function MyNewPage() {
-  return (
-    <div>
-      <h1>New Feature</h1>
-      <p>This is a custom page!</p>
-    </div>
-  );
-}
-```
+### The Layout Component
+Internal pages should be wrapped in the `src/components/Layout.jsx` component. This provides:
+- The top navigation bar.
+- Global navigation links (Home, Profile, Stats, Leaderboard).
+- The page title (via the `title` prop).
+- Consistent spacing and layout.
+
+### Step-by-Step Instructions
+
+1. **Create the Page Component**:
+   Create a new `.jsx` file in `frontend/src/pages/`.
+
+   Example (`frontend/src/pages/MyNewPage.jsx`):
+   ```jsx
+   import Layout from '../components/Layout'
+
+   export default function MyNewPage() {
+     return (
+       <Layout title="NEW FEATURE">
+         <div className="status-text">
+           <h2>New Feature</h2>
+           <p>Your implementation goes here.</p>
+         </div>
+       </Layout>
+     );
+   }
+   ```
+
+2. **Register the Route**:
+   Import the component in `frontend/src/App.jsx` and add a new `<Route>`.
+
+   ```jsx
+   import MyNewPage from './pages/MyNewPage'
+   // ...
+   <Route path="/new-feature" element={<MyNewPage />} />
+   ```
+
+3. **Link to the Page**:
+   If the page should be in the main nav, update `frontend/src/components/Layout.jsx`. Otherwise, use a `<Link>` from another page.
+
+   ```jsx
+   import { Link } from 'react-router-dom'
+   // ...
+   <Link to="/new-feature" className="btn btn--primary">Go to Feature</Link>
+   ```
 
 ## 4. Adding API Calls (Backend)
 To keep the backend organized, every page's API calls should be placed in their own `.py` file inside the `api/` directory (e.g., `api/home.py`).
