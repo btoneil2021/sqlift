@@ -188,7 +188,6 @@ CREATE TABLE workout_exercise (
   target_weight DECIMAL(8,2),
   expected_rest_time INTERVAL,
   PRIMARY KEY (workout_id, sort_order),
-  UNIQUE (workout_id, exercise_id),
 
 
   FOREIGN KEY (workout_id) REFERENCES workout(workout_id) ON DELETE CASCADE,

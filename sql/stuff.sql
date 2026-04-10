@@ -17,10 +17,10 @@ CREATE OR REPLACE VIEW vw_record_log_summary AS
         rl.workout_session_id AS workout_session_id,
         e.exercise_id AS exercise_id,
         e.name AS exercise_name,
-        rl.number AS number,
-        rl.timestamp AS timestamp,
-        rl.duration AS duration,
-        COALESCE(COUNT(sl.set_log_id)) AS set_count
+        rl.number AS record_log_number,
+        rl.timestamp AS record_log_timestamp,
+        rl.duration AS record_log_duration,
+        COALESCE(COUNT(sl.set_log_id), 0) AS set_count
     FROM record_log rl
     LEFT JOIN set_log sl
         ON rl.record_log_id = sl.record_log_id
@@ -29,11 +29,13 @@ CREATE OR REPLACE VIEW vw_record_log_summary AS
     GROUP BY rl.record_log_id, rl.workout_session_id, e.exercise_id, 
         e.name,rl.number, rl.timestamp, rl.duration;
 
-CREATE OR REPLACE FUNCTION fn_compute_workout_primary_muscle_group(p_workout_id BIGINT)
+CREATE OR REPLACE FUNCTION fn_compute_workout_primary_muscle_group(
+    p_workout_id BIGINT
+)
 RETURNS TEXT
 LANGUAGE sql
 AS $$
-    SELECT mg.name
+    SELECT mg.name AS primary_muscle_group_name
     FROM workout_exercise we
     INNER JOIN exercise_muscle_group emg
         ON emg.exercise_id = we.exercise_id
@@ -48,12 +50,56 @@ $$;
 
 CREATE OR REPLACE FUNCTION fn_list_workout_tags()
 RETURNS TABLE (
-    name TEXT,
+    tag_name TEXT,
     color_code TEXT
 )
 LANGUAGE sql
 AS $$
-    SELECT wt.name, wt.color_code
+    SELECT 
+        wt.name AS tag_name, 
+        wt.color_code AS color_code
     FROM workout_tag wt
     ORDER BY wt.name
+$$;
+
+CREATE OR REPLACE FUNCTION fn_search_exercise_library(
+    p_search_text TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+    exercise_id BIGINT,
+    exercise_name TEXT
+)
+LANGUAGE sql
+AS $$
+    SELECT 
+        e.exercise_id, 
+        e.name AS exercise_name
+    FROM exercise e
+    WHERE
+        p_search_text IS NULL
+        OR btrim(p_search_text) = ''
+        OR e.name ILIKE '%' || btrim(p_search_text) || '%'
+    ORDER BY e.name
+$$;
+
+CREATE OR REPLACE FUNCTION fn_get_workout_header(
+    user_id BIGINT,
+    workout_id BIGINT
+)
+RETURNS TABLE (
+    workout_id BIGINT,
+    workout_name TEXT,
+    preferred_day TEXT,
+    primary_muscle_group TEXT
+)
+LANGUAGE sql
+AS $$
+    SELECT
+        w.workout_id,
+        w.name AS workout_name,
+        w.preferred_day,
+        fn_compute_workout_primary_muscle_group(w.workout_id) AS primary_muscle_group
+    FROM workout w
+    WHERE w.user_id = user_id
+        AND w.workout_id = workout_id
 $$;
