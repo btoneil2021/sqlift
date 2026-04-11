@@ -28,24 +28,27 @@ def log_measurement(conn, user_id):
     if not data.get("weight"):
         return jsonify(status="error", message="weight is required."), 400
 
+    fields = {
+        "p_weight":              data.get("weight"),
+        "p_height":              data.get("height"),
+        "p_visual_body_fat_pct": data.get("visual_body_fat_percent"),
+        "p_neck":                data.get("neck_measurement"),
+        "p_shoulder":            data.get("shoulder_measurement"),
+        "p_chest":               data.get("chest_measurement"),
+        "p_bicep":               data.get("bicep_measurement"),
+        "p_forearm":             data.get("forearm_measurement"),
+        "p_waist":               data.get("waist_measurement"),
+        "p_hips":                data.get("hips_measurement"),
+        "p_thigh":               data.get("thigh_measurement"),
+        "p_calve":               data.get("calve_measurement"),
+    }
+    provided = {k: v for k, v in fields.items() if v is not None}
+    named_sql = ", ".join(f"{k} => %({k})s" for k in provided)
+
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            "SELECT * FROM sqlift.log_measurement(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
-            (
-                user_id,
-                data.get("weight"),
-                data.get("height"),
-                data.get("visual_body_fat_percent"),
-                data.get("neck_measurement"),
-                data.get("shoulder_measurement"),
-                data.get("chest_measurement"),
-                data.get("bicep_measurement"),
-                data.get("forearm_measurement"),
-                data.get("waist_measurement"),
-                data.get("hips_measurement"),
-                data.get("thigh_measurement"),
-                data.get("calve_measurement"),
-            ),
+            f"SELECT * FROM sqlift.log_measurement(p_user_id => %(p_user_id)s, {named_sql})",
+            {"p_user_id": user_id, **provided},
         )
         row = cur.fetchone()
         conn.commit()
@@ -60,7 +63,10 @@ def get_goals(conn, user_id):
         return jsonify(status="error", message="Not authorized."), 403
 
     with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT * FROM sqlift.get_user_goals(%s)", (user_id,))
+        cur.execute(
+            "SELECT * FROM sqlift.get_user_goals(p_user_id => %(p_user_id)s)",
+            {"p_user_id": user_id},
+        )
         goals = cur.fetchall()
 
     return jsonify(status="ok", goals=[serialize_goal(g) for g in goals])
@@ -84,8 +90,12 @@ def add_goal(conn, user_id):
 
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            "SELECT * FROM sqlift.add_user_goal(%s, %s, %s)",
-            (user_id, description, target_date),
+            """SELECT * FROM sqlift.add_user_goal(
+                p_user_id     => %(p_user_id)s,
+                p_description => %(p_description)s,
+                p_target_date => %(p_target_date)s
+            )""",
+            {"p_user_id": user_id, "p_description": description, "p_target_date": target_date},
         )
         goal = cur.fetchone()
         conn.commit()
@@ -110,8 +120,12 @@ def update_goal(conn, user_id, goal_id):
 
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            "SELECT * FROM sqlift.update_goal_status(%s, %s, %s)",
-            (user_id, goal_id, new_status),
+            """SELECT * FROM sqlift.update_goal_status(
+                p_user_id           => %(p_user_id)s,
+                p_goal_id           => %(p_goal_id)s,
+                p_completion_status => %(p_completion_status)s
+            )""",
+            {"p_user_id": user_id, "p_goal_id": goal_id, "p_completion_status": new_status},
         )
         goal = cur.fetchone()
         conn.commit()
@@ -129,7 +143,10 @@ def delete_goal(conn, user_id, goal_id):
         return jsonify(status="error", message="Not authorized."), 403
 
     with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT sqlift.delete_user_goal(%s, %s)", (user_id, goal_id))
+        cur.execute(
+            "SELECT sqlift.delete_user_goal(p_user_id => %(p_user_id)s, p_goal_id => %(p_goal_id)s)",
+            {"p_user_id": user_id, "p_goal_id": goal_id},
+        )
         row = cur.fetchone()
         conn.commit()
 

@@ -1,10 +1,190 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Layout from '../components/Layout'
 import { useAuth } from '../context/AuthContext'
 
+const W = 240, H = 100, PAD = { top: 10, right: 10, bottom: 24, left: 36 }
+const INNER_W = W - PAD.left - PAD.right
+const INNER_H = H - PAD.top - PAD.bottom
+
+function Sparkline({ data, label }) {
+  const [tooltip, setTooltip] = useState(null)
+  const svgRef = useRef(null)
+
+  if (!data || data.length < 2) return null
+
+  const values = data.map(d => d.value)
+  const times  = data.map(d => d.ts)
+  const minV = Math.min(...values), maxV = Math.max(...values)
+  const minT = Math.min(...times),  maxT = Math.max(...times)
+
+  const rangeV = maxV - minV || 1
+  const rangeT = maxT - minT || 1
+
+  const toX = ts  => ((ts - minT) / rangeT) * INNER_W
+  const toY = val => INNER_H - ((val - minV) / rangeV) * INNER_H
+
+  const pts = data.map(d => ({ x: toX(d.ts), y: toY(d.value), ...d }))
+  const polyline = pts.map(p => `${p.x},${p.y}`).join(' ')
+
+  // area fill path
+  const areaPath =
+    `M${pts[0].x},${INNER_H} ` +
+    pts.map(p => `L${p.x},${p.y}`).join(' ') +
+    ` L${pts[pts.length - 1].x},${INNER_H} Z`
+
+  // y-axis ticks (3 levels)
+  const yTicks = [minV, minV + rangeV / 2, maxV].map(v => ({
+    v, y: toY(v),
+    label: Number.isInteger(v) ? v : v.toFixed(1),
+  }))
+
+  // x-axis ticks (first and last)
+  const xTicks = [data[0], data[data.length - 1]].map(d => ({
+    x: toX(d.ts),
+    label: new Date(d.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+  }))
+
+  const delta = values[values.length - 1] - values[0]
+  const deltaColor = delta > 0 ? 'var(--accent)' : delta < 0 ? 'var(--danger)' : 'var(--text-muted)'
+  const deltaStr = (delta > 0 ? '+' : '') + (Number.isInteger(delta) ? delta : delta.toFixed(1))
+
+  const latest = pts[pts.length - 1]
+
+  function handleMouseMove(e) {
+    const rect = svgRef.current.getBoundingClientRect()
+    const mouseX = (e.clientX - rect.left - PAD.left) * (INNER_W / (rect.width - PAD.left - PAD.right))
+    let closest = pts[0], minDist = Infinity
+    for (const p of pts) {
+      const dist = Math.abs(p.x - mouseX)
+      if (dist < minDist) { minDist = dist; closest = p }
+    }
+    setTooltip(closest)
+  }
+
+  return (
+    <div style={{ position: 'relative' }}>
+      {/* header row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
+          {label}
+        </span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: deltaColor }}>
+          {deltaStr}
+        </span>
+      </div>
+
+      <svg
+        ref={svgRef}
+        width="100%"
+        viewBox={`0 0 ${W} ${H}`}
+        style={{ display: 'block', overflow: 'visible', cursor: 'crosshair' }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setTooltip(null)}
+      >
+        <g transform={`translate(${PAD.left},${PAD.top})`}>
+          {/* grid lines */}
+          {yTicks.map((t, i) => (
+            <line key={i} x1={0} y1={t.y} x2={INNER_W} y2={t.y}
+              stroke="var(--border)" strokeWidth={1} />
+          ))}
+
+          {/* area fill */}
+          <defs>
+            <linearGradient id={`grad-${label.replace(/\s/g,'')}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.18" />
+              <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d={areaPath} fill={`url(#grad-${label.replace(/\s/g,'')})`} />
+
+          {/* line */}
+          <polyline
+            points={polyline}
+            fill="none"
+            stroke="var(--accent)"
+            strokeWidth={1.5}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+
+          {/* latest dot */}
+          <circle cx={latest.x} cy={latest.y} r={3} fill="var(--accent)" />
+          <circle cx={latest.x} cy={latest.y} r={5} fill="none" stroke="var(--accent)" strokeWidth={1} opacity={0.4} />
+
+          {/* tooltip dot */}
+          {tooltip && tooltip !== latest && (
+            <circle cx={tooltip.x} cy={tooltip.y} r={3} fill="var(--text-muted)" />
+          )}
+
+          {/* y-axis labels */}
+          {yTicks.map((t, i) => (
+            <text key={i} x={-6} y={t.y + 3.5}
+              fontFamily="var(--font-mono)" fontSize={8} fill="var(--text-muted)"
+              textAnchor="end">
+              {t.label}
+            </text>
+          ))}
+
+          {/* x-axis labels */}
+          {xTicks.map((t, i) => (
+            <text key={i} x={t.x} y={INNER_H + 16}
+              fontFamily="var(--font-mono)" fontSize={8} fill="var(--text-muted)"
+              textAnchor={i === 0 ? 'start' : 'end'}>
+              {t.label}
+            </text>
+          ))}
+        </g>
+      </svg>
+
+      {/* tooltip bubble */}
+      {tooltip && (
+        <div style={{
+          position: 'absolute',
+          top: PAD.top,
+          left: `calc(${(tooltip.x / INNER_W) * 100}% + ${PAD.left}px)`,
+          transform: tooltip.x > INNER_W / 2 ? 'translateX(calc(-100% - 8px))' : 'translateX(8px)',
+          background: 'var(--surface-2)',
+          border: '1px solid var(--border-bright)',
+          padding: '4px 8px',
+          pointerEvents: 'none',
+          zIndex: 10,
+        }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', display: 'block' }}>
+            {new Date(tooltip.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text)', display: 'block' }}>
+            {Number.isInteger(tooltip.value) ? tooltip.value : tooltip.value.toFixed(1)}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Time range helpers ─────────────────────────────────────────────────────
+const RANGES = [
+  { label: '1M', days: 30 },
+  { label: '3M', days: 90 },
+  { label: '6M', days: 180 },
+  { label: '1Y', days: 365 },
+  { label: 'ALL', days: Infinity },
+]
+
+function filterByRange(measurements, days) {
+  if (days === Infinity) return measurements
+  const cutoff = Date.now() - days * 86400 * 1000
+  return measurements.filter(m => new Date(m.date_time).getTime() >= cutoff)
+}
+
+function buildSeriesData(measurements, fieldKey) {
+  return measurements
+    .filter(m => m[fieldKey] != null)
+    .map(m => ({ ts: new Date(m.date_time).getTime(), value: Number(m[fieldKey]) }))
+    .sort((a, b) => a.ts - b.ts)
+}
+
 const MEASUREMENT_FIELDS = [
   { key: 'weight',                   label: 'WEIGHT (kg)',    type: 'number', required: true },
-  { key: 'height',                   label: 'HEIGHT (cm)',    type: 'number' },
   { key: 'visual_body_fat_percent',  label: 'BODY FAT (%)',   type: 'number' },
   { key: 'neck_measurement',         label: 'NECK (cm)',      type: 'number' },
   { key: 'shoulder_measurement',     label: 'SHOULDERS (cm)', type: 'number' },
@@ -84,6 +264,7 @@ export default function Stats() {
         .filter(([, v]) => v !== '')
         .map(([k, v]) => [k, Number(v)])
     )
+    if (user.height != null) body.height = Number(user.height)
     try {
       const res = await fetch(`/api/profile/${user.user_id}/measurements`, {
         method: 'POST',
@@ -173,6 +354,35 @@ export default function Stats() {
   }
 
   const latest = measurements[0] ?? null
+  const [activeRange, setActiveRange] = useState('3M')
+  const [visibleKeys, setVisibleKeys] = useState(null) // null = show all
+  const [showChartFilter, setShowChartFilter] = useState(false)
+
+  const activeDays = RANGES.find(r => r.label === activeRange)?.days ?? 90
+  const rangedMeasurements = filterByRange(measurements, activeDays)
+
+  const chartFields = MEASUREMENT_FIELDS.filter(f => {
+    const series = buildSeriesData(rangedMeasurements, f.key)
+    return series.length >= 2
+  })
+
+  const showFilter = chartFields.length > 3
+  const displayedFields = !showFilter
+    ? chartFields
+    : visibleKeys === null
+      ? chartFields.slice(0, 3)
+      : chartFields.filter(f => visibleKeys.has(f.key))
+
+  function toggleKey(key) {
+    setVisibleKeys(prev => {
+      const base = prev ?? new Set(chartFields.slice(0, 3).map(f => f.key))
+      const next = new Set(base)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }
+
+  const activeKeys = visibleKeys ?? new Set(chartFields.slice(0, 3).map(f => f.key))
 
   return (
     <Layout title="PERFORMANCE METRICS">
@@ -373,6 +583,100 @@ export default function Stats() {
           )}
         </div>
 
+      </div>
+
+      <div className="dashboard-card" style={{ marginTop: 24, gridColumn: '1 / -1' }}>
+        <div className="flex-header" style={{ marginBottom: showFilter ? 0 : 16 }}>
+          <span className="panel-title">PROGRESSION</span>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            {showFilter && (
+              <button
+                onClick={() => setShowChartFilter(v => !v)}
+                className={showChartFilter ? 'btn btn--accent' : 'btn btn--outline'}
+                style={{ fontSize: 10, padding: '3px 12px', letterSpacing: '0.06em', marginRight: 8, borderStyle: showChartFilter ? undefined : 'dashed' }}
+              >
+                ⊞ METRICS {activeKeys.size}/{chartFields.length}
+              </button>
+            )}
+            {RANGES.map(r => (
+              <button
+                key={r.label}
+                onClick={() => setActiveRange(r.label)}
+                className={activeRange === r.label ? 'btn btn--accent' : 'btn btn--outline'}
+                style={{ fontSize: 10, padding: '3px 10px', letterSpacing: '0.05em' }}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {showFilter && showChartFilter && (
+          <div style={{
+            display: 'flex', flexWrap: 'wrap', gap: 6,
+            padding: '12px 0 16px',
+            borderBottom: '1px solid var(--border)',
+            marginBottom: 16,
+          }}>
+            {chartFields.map(f => {
+              const on = activeKeys.has(f.key)
+              return (
+                <button
+                  key={f.key}
+                  onClick={() => toggleKey(f.key)}
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 10,
+                    padding: '3px 10px',
+                    letterSpacing: '0.05em',
+                    background: on ? 'var(--accent-glow)' : 'var(--bg)',
+                    border: `1px solid ${on ? 'var(--accent)' : 'var(--border-bright)'}`,
+                    color: on ? 'var(--accent)' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                    borderRadius: 2,
+                  }}
+                >
+                  {f.label}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {!showFilter && <div style={{ marginBottom: 16 }} />}
+
+        {measurements.length === 0 ? (
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)' }}>
+            No measurements logged yet.
+          </p>
+        ) : chartFields.length === 0 ? (
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)' }}>
+            Not enough data in this range — log a second measurement to see progression.
+          </p>
+        ) : displayedFields.length === 0 ? (
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)' }}>
+            No metrics selected — use the filter to pick what to display.
+          </p>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+            gap: 20,
+          }}>
+            {displayedFields.map(f => (
+              <div key={f.key} style={{
+                background: 'var(--bg)',
+                border: '1px solid var(--border)',
+                padding: '14px 16px',
+              }}>
+                <Sparkline
+                  data={buildSeriesData(rangedMeasurements, f.key)}
+                  label={f.label}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </Layout>
   )
