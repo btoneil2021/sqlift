@@ -6,6 +6,9 @@ from importlib.util import module_from_spec, spec_from_loader
 from pathlib import Path
 
 import psycopg
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 CANONICAL_BUCKETS = [
@@ -56,6 +59,16 @@ def get_database_url():
     url = _clean_env_value(os.getenv("DATABASE_URL"))
     if not url:
         raise RuntimeError("Missing DATABASE_URL for importer.")
+
+    if "[YOUR-PASSWORD]" in url:
+        password = _clean_env_value(os.getenv("DATABASE_PASSWORD"))
+        if not password:
+            raise RuntimeError(
+                "DATABASE_URL contains [YOUR-PASSWORD] placeholder, but "
+                "DATABASE_PASSWORD environment variable is not set."
+            )
+        url = url.replace("[YOUR-PASSWORD]", password)
+
     return url
 
 

@@ -1,5 +1,13 @@
 {
   "name": "cs-5200-project",
   "version": "1.0.0",
-  "private": true
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "frontend": "npm run dev --prefix frontend",
+    "backend": "python api/app.py"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
 }
