@@ -213,3 +213,25 @@ BEGIN
     RETURN v_deleted > 0;
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION get_latest_measurements(p_user_id BIGINT)
+RETURNS TABLE (
+    date_time         TIMESTAMP,
+    weight            DECIMAL(6,2),
+    waist_measurement DECIMAL(6,2),
+    chest_measurement DECIMAL(6,2),
+    bicep_measurement DECIMAL(6,2)
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT m.date_time,
+           m.weight,
+           m.waist_measurement,
+           m.chest_measurement,
+           m.bicep_measurement
+    FROM sqlift.measurement_log m
+    WHERE m.user_id = p_user_id
+    ORDER BY m.date_time DESC
+    LIMIT 2;
+END;
+$$ LANGUAGE plpgsql;

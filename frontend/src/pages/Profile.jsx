@@ -2,23 +2,33 @@ import { useState, useEffect } from 'react'
 import Layout from '../components/Layout'
 import { useAuth } from '../context/AuthContext'
 
-// Mock data (measurements, goals, achievements — not yet wired to backend)
-const mockMeasurements = [
-  { date_time: '2026-04-01', weight: 83.4, waist_measurement: 82, chest_measurement: 102, bicep_measurement: 38 },
-  { date_time: '2026-03-15', weight: 84.1, waist_measurement: 83, chest_measurement: 101, bicep_measurement: 37.5 },
-]
 
-const mockGoals = [
-  { goal_id: 1, description: 'Bench press 100 kg for 5 reps', target_date: '2026-06-30', completion_status: 'in_progress' },
-  { goal_id: 2, description: 'Run 5k under 25 minutes', target_date: '2026-05-15', completion_status: 'in_progress' },
-  { goal_id: 3, description: 'Lose 5 kg of body fat', target_date: '2026-03-01', completion_status: 'completed' },
-]
 
 const mockAchievements = [
   { achievement_id: 1, name: 'First Workout', description: 'Logged your first session', date_earned: '2026-01-10' },
   { achievement_id: 2, name: '30-Day Streak', description: 'Worked out 30 days in a row', date_earned: '2026-02-09' },
   { achievement_id: 3, name: 'Century Club', description: 'Logged 100 total sets', date_earned: '2026-03-20' },
 ]
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+function parseGoalDate(dateStr) {
+  const s = String(dateStr).slice(0, 10)
+  const [y, m, d] = s.split('-').map(Number)
+  return { y, m, d, date: new Date(y, m - 1, d) }
+}
+
+function formatGoalDate(dateStr) {
+  const { y, m, d } = parseGoalDate(dateStr)
+  if (!y || !m || !d) return dateStr
+  return `${MONTHS[m - 1]} ${d}, ${y}`
+}
+
+function isOverdue(dateStr) {
+  const { date } = parseGoalDate(dateStr)
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  return date < today
+}
 
 function FriendAvatar({ first_name, last_name }) {
   const initials = `${first_name[0]}${last_name[0]}`.toUpperCase()
@@ -87,6 +97,10 @@ export default function Profile() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
+  const [measurements, setMeasurements] = useState([])
+
+  const [goals, setGoals] = useState([])
+
   const [friends, setFriends] = useState([])
   const [friendsLoading, setFriendsLoading] = useState(true)
   const [addUsername, setAddUsername] = useState('')
@@ -96,6 +110,12 @@ export default function Profile() {
 
   useEffect(() => {
     if (!user) return
+    fetch(`/api/profile/${user.user_id}/measurements`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { if (data.status === 'ok') setMeasurements(data.measurements) })
+    fetch(`/api/stats/${user.user_id}/goals`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { if (data.status === 'ok') setGoals(data.goals) })
     setFriendsLoading(true)
     fetch(`/api/profile/${user.user_id}/friends`, { credentials: 'include' })
       .then(r => r.json())
@@ -181,10 +201,27 @@ export default function Profile() {
     )
   }
 
-  const latest = mockMeasurements[0]
-  const prev = mockMeasurements[1]
-  const weightDelta = (latest.weight - prev.weight).toFixed(1)
-  const deltaSign = weightDelta > 0 ? '+' : ''
+  const latest = measurements[0] ?? null
+  const prev = measurements[1] ?? null
+
+  function pctDelta(field) {
+    if (!latest || !prev) return null
+    const a = parseFloat(latest[field])
+    const b = parseFloat(prev[field])
+    if (!b || isNaN(a) || isNaN(b)) return null
+    return ((a - b) / b * 100).toFixed(1)
+  }
+
+  function DeltaBadge({ field }) {
+    const d = pctDelta(field)
+    if (d === null) return null
+    const up = parseFloat(d) > 0
+    return (
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, marginTop: 2, color: up ? 'var(--danger)' : 'var(--success)' }}>
+        {up ? '+' : ''}{d}% vs {prev.date_time ? new Date(prev.date_time).toLocaleDateString('en-US', { month: 'short', d: 'numeric' }) : 'prev'}
+      </span>
+    )
+  }
 
   function startEdit() {
     setDraft({
@@ -303,31 +340,32 @@ export default function Profile() {
 
         {/* Latest Measurements (read-only, from measurement_log) */}
         <div className="dashboard-card">
-          <div className="panel-title">LATEST MEASUREMENTS — {latest.date_time}</div>
-          <div className="stats-grid">
-            <div className="stat-item">
-              <span className="stat-label">WEIGHT (kg)</span>
-              <span className="stat-value">{latest.weight}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, marginTop: 2, color: weightDelta > 0 ? 'var(--danger)' : 'var(--success)' }}>
-                {deltaSign}{weightDelta} vs prev
-              </span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">WAIST (cm)</span>
-              <span className="stat-value">{latest.waist_measurement}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">CHEST (cm)</span>
-              <span className="stat-value">{latest.chest_measurement}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">BICEP (cm)</span>
-              <span className="stat-value">{latest.bicep_measurement}</span>
-            </div>
+          <div className="flex-header">
+            <span className="panel-title">
+              LATEST MEASUREMENTS{latest ? ` — ${new Date(latest.date_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+            </span>
+            <a href="/stats" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', textDecoration: 'none' }}>
+              LOG →
+            </a>
           </div>
-          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', marginTop: 'auto', paddingTop: 16 }}>
-            Log new measurements from the Stats page.
-          </p>
+          {latest ? (
+            <div className="stats-grid">
+              {[
+                { field: 'weight',            label: 'WEIGHT (kg)' },
+                { field: 'waist_measurement', label: 'WAIST (cm)' },
+                { field: 'chest_measurement', label: 'CHEST (cm)' },
+                { field: 'bicep_measurement', label: 'BICEP (cm)' },
+              ].map(({ field, label }) => (
+                <div key={field} className="stat-item">
+                  <span className="stat-label">{label}</span>
+                  <span className="stat-value">{latest[field] ?? '—'}</span>
+                  <DeltaBadge field={field} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)' }}>No measurements logged yet.</p>
+          )}
         </div>
       </div>
 
@@ -335,25 +373,46 @@ export default function Profile() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
 
         <div className="dashboard-card">
-          <div className="panel-title">GOALS</div>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {mockGoals.map(goal => (
-              <li key={goal.goal_id} style={{
-                background: 'var(--bg)', border: '1px solid var(--border)',
-                padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6,
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                  <span style={{ fontSize: 14, lineHeight: 1.3 }}>{goal.description}</span>
-                  {goal.completion_status === 'completed'
-                    ? <span className="tag border-success">DONE</span>
-                    : <span className="tag border-amber">ACTIVE</span>}
-                </div>
-                {goal.target_date && (
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>TARGET {goal.target_date}</span>
-                )}
-              </li>
-            ))}
-          </ul>
+          <div className="flex-header">
+            <span className="panel-title">GOALS — {goals.length}</span>
+            <a href="/stats" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', textDecoration: 'none' }}>
+              {goals.length > 3 ? `+${goals.length - 3} MORE →` : 'MANAGE →'}
+            </a>
+          </div>
+          {goals.length === 0 ? (
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)' }}>No goals set yet. Add them from the Stats page.</p>
+          ) : (
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {goals.slice(0, 3).map(goal => (
+                <li key={goal.goal_id} style={{
+                  background: 'var(--bg)', border: '1px solid var(--border)',
+                  padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6,
+                  opacity: goal.completion_status === 'completed' ? 0.6 : 1,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                    <span style={{
+                      fontSize: 14, lineHeight: 1.3,
+                      textDecoration: goal.completion_status === 'completed' ? 'line-through' : 'none',
+                      color: goal.completion_status === 'completed' ? 'var(--text-muted)' : 'var(--text)',
+                    }}>{goal.description}</span>
+                    {goal.completion_status === 'completed'
+                      ? <span className="tag border-success">DONE</span>
+                      : <span className="tag border-amber">ACTIVE</span>}
+                  </div>
+                  {goal.target_date && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: goal.completion_status !== 'completed' && isOverdue(goal.target_date) ? 'var(--danger)' : 'var(--text-muted)' }}>
+                        TARGET {formatGoalDate(goal.target_date)}
+                      </span>
+                      {goal.completion_status !== 'completed' && isOverdue(goal.target_date) && (
+                        <span className="tag border-danger">OVERDUE</span>
+                      )}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <div className="dashboard-card" style={{ minHeight: 0 }}>
