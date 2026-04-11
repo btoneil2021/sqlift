@@ -15,12 +15,7 @@ def get_profile(conn, user_id):
 
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            f"""
-            SELECT user_id, username, first_name, last_name,
-                   height, sex, email, phone_num, profile_pic_url
-            FROM {tbl('user')}
-            WHERE user_id = %s
-            """,
+            "SELECT * FROM sqlift.get_user_profile(%s)",
             (user_id,),
         )
         user = cur.fetchone()
@@ -52,19 +47,24 @@ def update_profile(conn, user_id):
     if not updates:
         return jsonify(status="error", message="No valid fields provided."), 400
 
-    set_clause = ", ".join(f"{col} = %s" for col in updates)
-    values = list(updates.values()) + [user_id]
-
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            f"""
-            UPDATE {tbl('user')}
-            SET {set_clause}
-            WHERE user_id = %s
-            RETURNING user_id, username, first_name, last_name,
-                      height, sex, email, phone_num, profile_pic_url
+            """
+            SELECT * FROM sqlift.update_user_profile(
+                %s, %s, %s, %s, %s, %s, %s, %s, %s
+            )
             """,
-            values,
+            (
+                user_id,
+                updates.get("username"),
+                updates.get("first_name"),
+                updates.get("last_name"),
+                updates.get("height"),
+                updates.get("sex"),
+                updates.get("email"),
+                updates.get("phone_num"),
+                updates.get("profile_pic_url")
+            ),
         )
         updated = cur.fetchone()
         conn.commit()
@@ -110,8 +110,8 @@ def change_password(conn, user_id):
 
         new_hash = bcrypt.hashpw(new_pw.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
         cur.execute(
-            f'UPDATE {tbl("user")} SET password = %s WHERE user_id = %s',
-            (new_hash, user_id),
+            "SELECT sqlift.change_user_password(%s, %s)",
+            (user_id, new_hash),
         )
         conn.commit()
 

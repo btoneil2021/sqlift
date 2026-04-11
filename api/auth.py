@@ -22,12 +22,7 @@ def login(conn):
 
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            f"""
-            SELECT user_id, username, first_name, last_name,
-                   height, sex, email, phone_num, profile_pic_url, password
-            FROM {tbl('user')}
-            WHERE email = %s
-            """,
+            "SELECT * FROM sqlift.get_user_by_email(%s)",
             (email,),
         )
         user = cur.fetchone()
@@ -70,12 +65,7 @@ def signup(conn):
     with conn.cursor(row_factory=dict_row) as cur:
         try:
             cur.execute(
-                f"""
-                INSERT INTO {tbl('user')} (username, email, password, first_name, last_name, phone_num)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                RETURNING user_id, username, first_name, last_name,
-                          height, sex, email, phone_num, profile_pic_url
-                """,
+                "SELECT * FROM sqlift.signup_user(%s, %s, %s, %s, %s, %s)",
                 (username, email, password_hash, first_name, last_name, phone_num),
             )
             user = cur.fetchone()
@@ -125,3 +115,12 @@ def me(conn):
         return jsonify(status="error", message="User not found."), 404
 
     return jsonify(status="ok", user=user)
+
+
+@auth_bp.route("/api/auth/username-available/<username>", methods=["GET"])
+@api_route(limit="60 per minute")
+def username_available(conn, username):
+    with conn.cursor() as cur:
+        cur.execute("SELECT sqlift.is_username_available(%s)", (username,))
+        available = cur.fetchone()[0]
+    return jsonify(status="ok", available=available)

@@ -1,0 +1,70 @@
+-- Stored procedures for authentication logic
+SET search_path TO sqlift;
+
+-- Get user by email for login
+CREATE OR REPLACE FUNCTION get_user_by_email(p_email TEXT)
+RETURNS TABLE (
+    user_id BIGINT,
+    username TEXT,
+    first_name TEXT,
+    last_name TEXT,
+    height DECIMAL(6,2),
+    sex TEXT,
+    email TEXT,
+    phone_num TEXT,
+    profile_pic_url TEXT,
+    password TEXT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT u.user_id, u.username, u.first_name, u.last_name,
+           u.height, u.sex, u.email, u.phone_num, u.profile_pic_url, u.password
+    FROM sqlift."user" u
+    WHERE u.email = p_email;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Register a new user
+CREATE OR REPLACE FUNCTION signup_user(
+    p_username TEXT,
+    p_email TEXT,
+    p_password TEXT,
+    p_first_name TEXT,
+    p_last_name TEXT,
+    p_phone_num TEXT
+)
+RETURNS TABLE (
+    user_id BIGINT,
+    username TEXT,
+    first_name TEXT,
+    last_name TEXT,
+    height DECIMAL(6,2),
+    sex TEXT,
+    email TEXT,
+    phone_num TEXT,
+    profile_pic_url TEXT
+) AS $$
+DECLARE
+    v_user_id BIGINT;
+BEGIN
+    INSERT INTO sqlift."user" (username, email, password, first_name, last_name, phone_num)
+    VALUES (p_username, p_email, p_password, p_first_name, p_last_name, p_phone_num)
+    RETURNING "user".user_id INTO v_user_id;
+
+    RETURN QUERY
+    SELECT u.user_id, u.username, u.first_name, u.last_name,
+           u.height, u.sex, u.email, u.phone_num, u.profile_pic_url
+    FROM sqlift."user" u
+    WHERE u.user_id = v_user_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Check if username is available
+CREATE OR REPLACE FUNCTION is_username_available(p_username TEXT)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN NOT EXISTS (
+        SELECT 1 FROM sqlift."user" WHERE username = p_username
+    );
+END;
+$$ LANGUAGE plpgsql;
