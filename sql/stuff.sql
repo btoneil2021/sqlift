@@ -408,6 +408,7 @@ BEGIN
         sort_order, 
         exercise_id,
         target_sets,
+        target_reps,
         target_weight,
         expected_rest_time
     )
@@ -420,17 +421,17 @@ BEGIN
         NULLIF(e_json ->> 'target_weight', '')::NUMERIC(8,2),
         NULLIF(e_json ->> 'expected_rest_time', '')::INTERVAL
     FROM jsonb_array_elements(COALESCE(p_exercises_json, '[]'::JSONB)) e_json
-    ORDER BY (e_json ->> 'sort_order')::INTEGER
+    ORDER BY (e_json ->> 'sort_order')::INTEGER;
 
     -- Insert new workout_tag_assignment rows where it connects
     INSERT INTO workout_tag_assignment (workout_id, tag_name)
     SELECT return_workout_id, wt.tag_name
     FROM (
-        SELECT DISTINCT (t_json ->> 'name') AS tag_name
-        FROM jsonb_array_elements(COALESCE(p_tags_json, '[]'::JSONB)) wt_json;
+        SELECT DISTINCT (wt_json ->> 'name') AS tag_name
+        FROM jsonb_array_elements(COALESCE(p_tags_json, '[]'::JSONB)) wt_json
     ) wt
     WHERE wt.tag_name IS NOT NULL
-        AND btrim(p.tag_name) <> '';
+        AND btrim(wt.tag_name) <> '';
 
     -- Return new workout ID
     RETURN return_workout_id;
@@ -467,7 +468,7 @@ BEGIN
         SELECT 1
         FROM json_output jo
         LEFT JOIN exercise e
-            ON e.exercise_id = jo1.exercise_id
+            ON e.exercise_id = jo.exercise_id
         WHERE e.exercise_id IS NULL
     ) THEN
         RAISE EXCEPTION 'One or more exercise_id values do not exist';
@@ -553,6 +554,7 @@ CREATE OR REPLACE FUNCTION fn_delete_workout(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 AS $$
+BEGIN
     IF NOT EXISTS (
         SELECT 1
         FROM workout w
@@ -581,6 +583,7 @@ AS $$
         AND user_id = p_user_id;
 
     RETURN TRUE;
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION fn_start_workout_session(
@@ -891,8 +894,8 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
     v_status TEXT;
-    v_next_number INTEGER;
-    v_set_log_id BIGINT;
+    return_next_number INTEGER;
+    return_set_log_id BIGINT;
 BEGIN
     -- Lock and validate parent record_log before inserting new set
     SELECT ws.completion_status
@@ -916,7 +919,7 @@ BEGIN
 
     -- Get next available set_log number for the given parent record_log
     SELECT COALESCE(MAX(sl.number), 0) + 1
-    INTO v_next_number
+    INTO return_next_number
     FROM set_log sl
     WHERE sl.record_log_id = p_record_log_id;
 
