@@ -1,7 +1,7 @@
 -- Stored procedures for authentication logic
 SET search_path TO sqlift;
 
--- Get user by email for login
+-- Fetches a user record by email for login verification
 CREATE OR REPLACE FUNCTION get_user_by_email(p_email TEXT)
 RETURNS TABLE (
     user_id BIGINT,
@@ -24,7 +24,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Register a new user
+-- Inserts a new user and returns their profile
 CREATE OR REPLACE FUNCTION signup_user(
     p_username TEXT,
     p_email TEXT,
@@ -59,7 +59,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Check if username is available
+-- Returns true if the given username is not already taken
 CREATE OR REPLACE FUNCTION is_username_available(p_username TEXT)
 RETURNS BOOLEAN AS $$
 BEGIN

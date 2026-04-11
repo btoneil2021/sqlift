@@ -120,6 +120,12 @@ return jsonify(status="error", message="..."), 4xx # failure
 
 ---
 
+## Database schema reference
+
+The full table and column definitions for all `sqlift` schema tables are in `docs/database_schema.sql`. Consult this file when writing new SQL functions or API endpoints to understand available columns, types, foreign keys, and constraints.
+
+Key tables: `user`, `workout`, `workout_session`, `workout_exercise`, `exercise`, `record_log`, `set_log`, `measurement_log`, `user_goal`, `user_friendship`, `user_achievement`, `achievement`, `muscle_group`, `equipment`.
+
 ## SQL functions reference
 
 All functions live in the `sqlift` schema. Source files are in `sql/`.

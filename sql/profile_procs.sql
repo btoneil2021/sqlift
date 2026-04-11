@@ -1,7 +1,7 @@
 -- Stored procedures for profile management
 SET search_path TO sqlift;
 
--- Get full user profile
+-- Returns the full profile for a given user
 CREATE OR REPLACE FUNCTION get_user_profile(p_user_id BIGINT)
 RETURNS TABLE (
     user_id BIGINT,
@@ -23,7 +23,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Update user profile (with COALESCE for optional updates)
+-- Updates any provided profile fields for a user, leaving unspecified fields unchanged
 CREATE OR REPLACE FUNCTION update_user_profile(
     p_user_id BIGINT,
     p_username TEXT DEFAULT NULL,
@@ -66,7 +66,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Change user password
+-- Updates the stored password hash for a user
 CREATE OR REPLACE FUNCTION change_user_password(
     p_user_id BIGINT,
     p_new_password_hash TEXT
@@ -79,6 +79,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Returns the stored password hash for a user
 CREATE OR REPLACE FUNCTION get_user_password_hash(p_user_id BIGINT)
 RETURNS TABLE (password TEXT) AS $$
 BEGIN
@@ -89,6 +90,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Returns all friends and pending friend requests for a user
 CREATE OR REPLACE FUNCTION get_user_friends(p_user_id BIGINT)
 RETURNS TABLE (
     friend_user_id BIGINT,
@@ -105,7 +107,6 @@ BEGIN
            combined.last_name,
            combined.status
     FROM (
-        -- Outgoing rows: sent requests and confirmed mutual friends
         SELECT uf.friend_user_id,
                u.username,
                u.first_name,
@@ -145,6 +146,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Sends a friend request or confirms one if the target already sent a request
 CREATE OR REPLACE FUNCTION add_friend(p_user_id BIGINT, p_target_username TEXT)
 RETURNS TABLE (
     friend_user_id BIGINT,
@@ -201,6 +203,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Removes the friendship record between two users and returns true if a row was deleted
 CREATE OR REPLACE FUNCTION remove_friend(p_user_id BIGINT, p_friend_id BIGINT)
 RETURNS BOOLEAN AS $$
 DECLARE
@@ -214,6 +217,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Returns the two most recent measurement log entries for a user
 CREATE OR REPLACE FUNCTION get_latest_measurements(p_user_id BIGINT)
 RETURNS TABLE (
     date_time         TIMESTAMP,

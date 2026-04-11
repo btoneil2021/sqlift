@@ -9,6 +9,8 @@ SQLift uses a dark, brutalist aesthetic — functional and sharp, not decorative
 
 Read `docs/theme.md` for the full design reference. This skill covers the practical implementation rules.
 
+**Scope: UI only.** This skill is strictly for building React components and pages. Do NOT create or modify backend routes, Flask blueprints, or API endpoints. For data shape and field names, refer to `docs/database_schema.sql` — use the column names and table structures defined there to inform prop names, state keys, and mock data.
+
 ---
 
 ## Design principles
@@ -191,3 +193,4 @@ Tags: 10px mono, 2px 6px padding, 2px border-radius.
 - Don't put `font-family` inline unless overriding to mono for a data value — let the CSS variables do the work.
 - Don't add loading spinners — show a simple mono text like `Loading…` or `…`.
 - Don't add empty states with illustrations — a single muted mono line is enough.
+- **Do NOT write backend routes, Flask endpoints, or any server-side code.** UI only.
