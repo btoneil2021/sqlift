@@ -1,8 +1,8 @@
 -- Stored procedures for authentication logic
 SET search_path TO sqlift;
 
--- Fetches a user record by email for login verification
-CREATE OR REPLACE FUNCTION get_user_by_email(p_email TEXT)
+-- Fetches a user record by email or username for login verification
+CREATE OR REPLACE FUNCTION get_user_for_login(p_identifier TEXT)
 RETURNS TABLE (
     user_id BIGINT,
     username TEXT,
@@ -20,7 +20,7 @@ BEGIN
     SELECT u.user_id, u.username, u.first_name, u.last_name,
            u.height, u.sex, u.email, u.phone_num, u.profile_pic_url, u.password
     FROM sqlift."user" u
-    WHERE u.email = p_email;
+    WHERE u.email = p_identifier OR u.username = p_identifier;
 END;
 $$ LANGUAGE plpgsql;
 

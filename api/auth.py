@@ -14,25 +14,25 @@ def login(conn):
     if not data:
         return jsonify(status="error", message="Request body must be JSON."), 400
 
-    email = data.get("email", "").strip()
+    identifier = data.get("identifier", "").strip()
     password = data.get("password", "")
 
-    if not email or not password:
-        return jsonify(status="error", message="Email and password are required."), 400
+    if not identifier or not password:
+        return jsonify(status="error", message="Username or email, and password are required."), 400
 
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            "SELECT * FROM sqlift.get_user_by_email(%s)",
-            (email,),
+            "SELECT * FROM sqlift.get_user_for_login(%s)",
+            (identifier,),
         )
         user = cur.fetchone()
 
     if user is None:
-        return jsonify(status="error", message="Invalid email or password."), 401
+        return jsonify(status="error", message="Invalid username/email or password."), 401
 
     stored_hash = user["password"].encode("utf-8") if isinstance(user["password"], str) else user["password"]
     if not bcrypt.checkpw(password.encode("utf-8"), stored_hash):
-        return jsonify(status="error", message="Invalid email or password."), 401
+        return jsonify(status="error", message="Invalid username/email or password."), 401
 
     session["user_id"] = user["user_id"]
 
