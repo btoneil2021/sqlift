@@ -26,9 +26,13 @@ def home():
 
 from api.home import home_bp
 from api.auth import auth_bp
+from api.workouts import workouts_bp
+from api.sessions import sessions_bp
 
 app.register_blueprint(home_bp)
 app.register_blueprint(auth_bp)
+app.register_blueprint(workouts_bp)
+app.register_blueprint(sessions_bp)
 
 
 @app.errorhandler(404)
