@@ -91,6 +91,7 @@ def api_route(limit=None):
             try:
                 database_url = get_database_url()
                 with psycopg.connect(database_url, sslmode=DB_SSL_MODE) as conn:
+                    conn.execute(f"SET search_path TO {DB_SCHEMA}")
                     return decorated_f(conn, *args, **kwargs)
             except RateLimitExceeded as exc:
                 return jsonify(
