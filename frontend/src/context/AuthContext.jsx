@@ -12,12 +12,12 @@ export function AuthProvider({ children }) {
       .catch(() => setUser(null))
   }, [])
 
-  async function login(email, password) {
+  async function login(identifier, password) {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ identifier, password }),
     })
     const data = await res.json()
     if (data.status === 'ok') {

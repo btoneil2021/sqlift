@@ -24,12 +24,13 @@ def home():
     return "Backend is running!"
 
 
-from api.home import home_bp
 from api.auth import auth_bp
+from api.profile import profile_bp
+from api.stats import stats_bp
 
-app.register_blueprint(home_bp)
 app.register_blueprint(auth_bp)
-
+app.register_blueprint(profile_bp)
+app.register_blueprint(stats_bp)
 
 @app.errorhandler(404)
 def page_not_found(e):

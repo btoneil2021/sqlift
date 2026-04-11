@@ -14,30 +14,25 @@ def login(conn):
     if not data:
         return jsonify(status="error", message="Request body must be JSON."), 400
 
-    email = data.get("email", "").strip()
+    identifier = data.get("identifier", "").strip()
     password = data.get("password", "")
 
-    if not email or not password:
-        return jsonify(status="error", message="Email and password are required."), 400
+    if not identifier or not password:
+        return jsonify(status="error", message="Username or email, and password are required."), 400
 
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            f"""
-            SELECT user_id, username, first_name, last_name,
-                   height, sex, email, phone_num, profile_pic_url, password
-            FROM {tbl('user')}
-            WHERE email = %s
-            """,
-            (email,),
+            "SELECT * FROM sqlift.get_user_for_login(%s)",
+            (identifier,),
         )
         user = cur.fetchone()
 
     if user is None:
-        return jsonify(status="error", message="Invalid email or password."), 401
+        return jsonify(status="error", message="Invalid username/email or password."), 401
 
     stored_hash = user["password"].encode("utf-8") if isinstance(user["password"], str) else user["password"]
     if not bcrypt.checkpw(password.encode("utf-8"), stored_hash):
-        return jsonify(status="error", message="Invalid email or password."), 401
+        return jsonify(status="error", message="Invalid username/email or password."), 401
 
     session["user_id"] = user["user_id"]
 
@@ -70,12 +65,7 @@ def signup(conn):
     with conn.cursor(row_factory=dict_row) as cur:
         try:
             cur.execute(
-                f"""
-                INSERT INTO {tbl('user')} (username, email, password, first_name, last_name, phone_num)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                RETURNING user_id, username, first_name, last_name,
-                          height, sex, email, phone_num, profile_pic_url
-                """,
+                "SELECT * FROM sqlift.signup_user(%s, %s, %s, %s, %s, %s)",
                 (username, email, password_hash, first_name, last_name, phone_num),
             )
             user = cur.fetchone()
@@ -125,3 +115,12 @@ def me(conn):
         return jsonify(status="error", message="User not found."), 404
 
     return jsonify(status="ok", user=user)
+
+
+@auth_bp.route("/api/auth/username-available/<username>", methods=["GET"])
+@api_route(limit="60 per minute")
+def username_available(conn, username):
+    with conn.cursor() as cur:
+        cur.execute("SELECT sqlift.is_username_available(%s)", (username,))
+        available = cur.fetchone()[0]
+    return jsonify(status="ok", available=available)
