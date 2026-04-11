@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Layout from '../components/Layout'
 import { useAuth } from '../context/AuthContext'
 
-// Mock measurement / goal / achievement / friend data
+// Mock data (measurements, goals, achievements — not yet wired to backend)
 const mockMeasurements = [
   { date_time: '2026-04-01', weight: 83.4, waist_measurement: 82, chest_measurement: 102, bicep_measurement: 38 },
   { date_time: '2026-03-15', weight: 84.1, waist_measurement: 83, chest_measurement: 101, bicep_measurement: 37.5 },
@@ -18,12 +18,6 @@ const mockAchievements = [
   { achievement_id: 1, name: 'First Workout', description: 'Logged your first session', date_earned: '2026-01-10' },
   { achievement_id: 2, name: '30-Day Streak', description: 'Worked out 30 days in a row', date_earned: '2026-02-09' },
   { achievement_id: 3, name: 'Century Club', description: 'Logged 100 total sets', date_earned: '2026-03-20' },
-]
-
-const mockFriends = [
-  { friend_user_id: 2, username: 'a_muscle', first_name: 'Alex', last_name: 'Kim', friendship_level: 'close' },
-  { friend_user_id: 3, username: 'priya_gains', first_name: 'Priya', last_name: 'Patel', friendship_level: 'friend' },
-  { friend_user_id: 4, username: 'benchbro', first_name: 'Marcus', last_name: 'Chen', friendship_level: 'friend' },
 ]
 
 function FriendAvatar({ first_name, last_name }) {
@@ -92,6 +86,92 @@ export default function Profile() {
   const [draft, setDraft] = useState({})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+
+  const [friends, setFriends] = useState([])
+  const [friendsLoading, setFriendsLoading] = useState(true)
+  const [addUsername, setAddUsername] = useState('')
+  const [addError, setAddError] = useState(null)
+  const [addLoading, setAddLoading] = useState(false)
+  const [actingId, setActingId] = useState(null) // tracks remove/accept in-flight
+
+  useEffect(() => {
+    if (!user) return
+    setFriendsLoading(true)
+    fetch(`/api/profile/${user.user_id}/friends`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { if (data.status === 'ok') setFriends(data.friends) })
+      .finally(() => setFriendsLoading(false))
+  }, [user])
+
+  async function handleAddFriend(e) {
+    e.preventDefault()
+    const trimmed = addUsername.trim()
+    if (!trimmed) return
+    if (trimmed === user.username) {
+      setAddError('You cannot add yourself.')
+      return
+    }
+    setAddLoading(true)
+    setAddError(null)
+    try {
+      const res = await fetch(`/api/profile/${user.user_id}/friends`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: trimmed }),
+      })
+      const data = await res.json()
+      if (data.status === 'ok') {
+        setFriends(prev => {
+          const without = prev.filter(f => f.friend_user_id !== data.friend.friend_user_id)
+          return [...without, data.friend]
+        })
+        setAddUsername('')
+      } else {
+        setAddError(data.message || 'Failed to send request.')
+      }
+    } catch {
+      setAddError('Network error.')
+    } finally {
+      setAddLoading(false)
+    }
+  }
+
+  async function handleAccept(username, friendId) {
+    setActingId(friendId)
+    try {
+      const res = await fetch(`/api/profile/${user.user_id}/friends`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username }),
+      })
+      const data = await res.json()
+      if (data.status === 'ok') {
+        setFriends(prev => prev.map(f =>
+          f.friend_user_id === friendId ? data.friend : f
+        ))
+      }
+    } finally {
+      setActingId(null)
+    }
+  }
+
+  async function handleRemoveFriend(friendId) {
+    setActingId(friendId)
+    try {
+      const res = await fetch(`/api/profile/${user.user_id}/friends/${friendId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data.status === 'ok') {
+        setFriends(prev => prev.filter(f => f.friend_user_id !== friendId))
+      }
+    } finally {
+      setActingId(null)
+    }
+  }
 
   if (!user) {
     return (
@@ -276,20 +356,85 @@ export default function Profile() {
           </ul>
         </div>
 
-        <div className="dashboard-card">
-          <div className="panel-title">FRIENDS — {mockFriends.length}</div>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {mockFriends.map(f => (
+        <div className="dashboard-card" style={{ minHeight: 0 }}>
+          <div className="flex-header">
+            <span className="panel-title">FRIENDS — {friends.length}</span>
+          </div>
+
+          {/* Add friend form */}
+          <form onSubmit={handleAddFriend} style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <input
+              className="profile-edit-input"
+              placeholder="Add by username…"
+              value={addUsername}
+              onChange={e => { setAddUsername(e.target.value); setAddError(null) }}
+              disabled={addLoading}
+              style={{ flex: 1 }}
+            />
+            <button
+              type="submit"
+              className="btn btn--accent"
+              style={{ fontSize: 11, padding: '4px 12px', flexShrink: 0 }}
+              disabled={addLoading || !addUsername.trim()}
+            >
+              {addLoading ? '…' : 'ADD'}
+            </button>
+          </form>
+          {addError && (
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--danger)', marginBottom: 8 }}>{addError}</p>
+          )}
+
+          {/* Scrollable list */}
+          <ul style={{
+            listStyle: 'none', padding: 0, margin: 0,
+            display: 'flex', flexDirection: 'column', gap: 8,
+            maxHeight: 260, overflowY: 'auto',
+            paddingRight: 4,
+          }}>
+            {friendsLoading && (
+              <li style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)', padding: '12px 0' }}>Loading…</li>
+            )}
+            {!friendsLoading && friends.length === 0 && (
+              <li style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)', padding: '12px 0' }}>No friends yet.</li>
+            )}
+            {friends.map(f => (
               <li key={f.friend_user_id} style={{
-                background: 'var(--bg)', border: '1px solid var(--border)',
+                background: 'var(--bg)',
+                border: `1px solid ${f.status === 'received' ? 'var(--accent)' : 'var(--border)'}`,
                 padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12,
               }}>
                 <FriendAvatar first_name={f.first_name} last_name={f.last_name} />
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ fontSize: 15, display: 'block' }}>{f.first_name} {f.last_name}</span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>@{f.username}</span>
                 </div>
-                <span className="tag border-slate" style={{ textTransform: 'uppercase' }}>{f.friendship_level}</span>
+
+                {f.status === 'friends' && (
+                  <span title="Friends" style={{ fontSize: 13, color: 'var(--success)', flexShrink: 0 }}>✓</span>
+                )}
+                {f.status === 'sent' && (
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>PENDING</span>
+                )}
+                {f.status === 'received' && (
+                  <button
+                    className="btn btn--accent"
+                    style={{ fontSize: 10, padding: '3px 8px', flexShrink: 0 }}
+                    onClick={() => handleAccept(f.username, f.friend_user_id)}
+                    disabled={actingId === f.friend_user_id}
+                  >
+                    {actingId === f.friend_user_id ? '…' : 'ACCEPT'}
+                  </button>
+                )}
+
+                <button
+                  className="btn btn--ghost"
+                  style={{ fontSize: 11, color: 'var(--danger)', padding: '2px 6px', flexShrink: 0 }}
+                  onClick={() => handleRemoveFriend(f.friend_user_id)}
+                  disabled={actingId === f.friend_user_id}
+                  title={f.status === 'received' ? 'Decline' : 'Remove'}
+                >
+                  {actingId === f.friend_user_id ? '…' : '✕'}
+                </button>
               </li>
             ))}
           </ul>

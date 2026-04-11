@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request, session
 from psycopg.rows import dict_row
 import bcrypt
 
-from api.utils import api_route, tbl
+from api.utils import api_route
 
 profile_bp = Blueprint('profile', __name__)
 
@@ -95,10 +95,7 @@ def change_password(conn, user_id):
         return jsonify(status="error", message="New password must be at least 6 characters."), 400
 
     with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            f'SELECT password FROM {tbl("user")} WHERE user_id = %s',
-            (user_id,),
-        )
+        cur.execute("SELECT * FROM sqlift.get_user_password_hash(%s)", (user_id,))
         row = cur.fetchone()
 
         if row is None:
@@ -109,10 +106,78 @@ def change_password(conn, user_id):
             return jsonify(status="error", message="Current password is incorrect."), 401
 
         new_hash = bcrypt.hashpw(new_pw.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-        cur.execute(
-            "SELECT sqlift.change_user_password(%s, %s)",
-            (user_id, new_hash),
-        )
+        cur.execute("SELECT sqlift.change_user_password(%s, %s)", (user_id, new_hash))
         conn.commit()
 
     return jsonify(status="ok", message="Password updated successfully.")
+
+
+
+@profile_bp.route("/api/profile/<int:user_id>/friends", methods=["GET"])
+@api_route(limit="30 per minute")
+def get_friends(conn, user_id):
+    if session.get("user_id") != user_id:
+        return jsonify(status="error", message="Not authorized."), 403
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT * FROM sqlift.get_user_friends(%s)", (user_id,))
+        friends = cur.fetchall()
+
+    return jsonify(status="ok", friends=friends)
+
+
+@profile_bp.route("/api/profile/<int:user_id>/friends", methods=["POST"])
+@api_route(limit="20 per minute")
+def add_friend(conn, user_id):
+    if session.get("user_id") != user_id:
+        return jsonify(status="error", message="Not authorized."), 403
+
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify(status="error", message="Request body must be JSON."), 400
+
+    target_username = (data.get("username") or "").strip()
+    if not target_username:
+        return jsonify(status="error", message="username is required."), 400
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        try:
+            cur.execute(
+                "SELECT * FROM sqlift.add_friend(%s, %s)",
+                (user_id, target_username),
+            )
+            friend = cur.fetchone()
+            conn.commit()
+        except Exception as exc:
+            conn.rollback()
+            msg = str(exc).lower()
+            if "cannot add yourself" in msg:
+                return jsonify(status="error", message="You cannot add yourself as a friend."), 400
+            if "unique" in msg or "already friends" in msg:
+                return jsonify(status="error", message="Already friends with that user."), 409
+            if "not found" in msg:
+                return jsonify(status="error", message="User not found."), 404
+            raise
+
+    if friend is None:
+        return jsonify(status="error", message="User not found."), 404
+
+    return jsonify(status="ok", friend=friend), 201
+
+
+@profile_bp.route("/api/profile/<int:user_id>/friends/<int:friend_id>", methods=["DELETE"])
+@api_route(limit="20 per minute")
+def remove_friend(conn, user_id, friend_id):
+    if session.get("user_id") != user_id:
+        return jsonify(status="error", message="Not authorized."), 403
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT sqlift.remove_friend(%s, %s)", (user_id, friend_id))
+        row = cur.fetchone()
+        conn.commit()
+
+    removed = row and list(row.values())[0]
+    if not removed:
+        return jsonify(status="error", message="Friend relationship not found."), 404
+
+    return jsonify(status="ok", message="Friend removed.")
