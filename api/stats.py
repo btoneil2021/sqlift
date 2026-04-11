@@ -241,6 +241,42 @@ def get_hero_stats(conn, user_id):
     return jsonify(status="ok", stats=stats)
 
 
+@stats_bp.route("/api/stats/<int:user_id>/muscle-volume", methods=["GET"])
+@api_route(limit="30 per minute")
+def get_muscle_volume(conn, user_id):
+    if session.get("user_id") != user_id:
+        return jsonify(status="error", message="Not authorized."), 403
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "SELECT * FROM sqlift.get_muscle_volume_by_session(p_user_id => %(p_user_id)s)",
+            {"p_user_id": user_id},
+        )
+        rows = cur.fetchall()
+
+        cur.execute(
+            "SELECT * FROM sqlift.get_favourite_muscle(p_user_id => %(p_user_id)s)",
+            {"p_user_id": user_id},
+        )
+        fav = cur.fetchone()
+
+    by_date = {}
+    for r in rows:
+        date_key = r["session_date"].isoformat() if r["session_date"] else None
+        if not date_key:
+            continue
+        if date_key not in by_date:
+            by_date[date_key] = {}
+        by_date[date_key][r["muscle_name"]] = float(r["volume_kg"] or 0)
+
+    return jsonify(
+        status="ok",
+        by_date=by_date,
+        favourite_muscle=fav["muscle_name"] if fav else None,
+        favourite_muscle_volume=float(fav["total_volume"]) if fav and fav["total_volume"] else None,
+    )
+
+
 def _serialize_session(s):
     # Converts session datetime fields to ISO strings for JSON serialization
     s = dict(s)
