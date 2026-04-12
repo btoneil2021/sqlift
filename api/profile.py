@@ -48,26 +48,39 @@ def update_profile(conn, user_id):
         return jsonify(status="error", message="No valid fields provided."), 400
 
     with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            """
-            SELECT * FROM sqlift.update_user_profile(
-                %s, %s, %s, %s, %s, %s, %s, %s, %s
+        try:
+            cur.execute(
+                """
+                SELECT * FROM sqlift.update_user_profile(
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s
+                )
+                """,
+                (
+                    user_id,
+                    updates.get("username"),
+                    updates.get("first_name"),
+                    updates.get("last_name"),
+                    updates.get("height"),
+                    updates.get("sex"),
+                    updates.get("email"),
+                    updates.get("phone_num"),
+                    updates.get("profile_pic_url")
+                ),
             )
-            """,
-            (
-                user_id,
-                updates.get("username"),
-                updates.get("first_name"),
-                updates.get("last_name"),
-                updates.get("height"),
-                updates.get("sex"),
-                updates.get("email"),
-                updates.get("phone_num"),
-                updates.get("profile_pic_url")
-            ),
-        )
-        updated = cur.fetchone()
-        conn.commit()
+            updated = cur.fetchone()
+            conn.commit()
+        except Exception as exc:
+            conn.rollback()
+            msg = str(exc).lower()
+            if "email is already yours" in msg:
+                return jsonify(status="error", message="That email is already your current email."), 409
+            if "email already in use" in msg:
+                return jsonify(status="error", message="That email is already associated with another account."), 409
+            if "phone number is already yours" in msg:
+                return jsonify(status="error", message="That phone number is already your current phone number."), 409
+            if "phone number already in use" in msg:
+                return jsonify(status="error", message="That phone number is already associated with another account."), 409
+            raise
 
     if updated is None:
         return jsonify(status="error", message="User not found."), 404

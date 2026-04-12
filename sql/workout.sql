@@ -57,21 +57,6 @@ AS $$
     LIMIT 1;
 $$;
 
--- Return the available workout tags in alphabetical order.
-CREATE OR REPLACE FUNCTION fn_list_workout_tags()
-RETURNS TABLE (
-    tag_name TEXT,
-    color_code TEXT
-)
-LANGUAGE sql
-AS $$
-    SELECT 
-        wt.name AS tag_name, 
-        wt.color_code AS color_code
-    FROM workout_tag wt
-    ORDER BY wt.name ASC
-$$;
-
 -- Return the matching exercise library rows for the provided search text.
 CREATE OR REPLACE FUNCTION fn_search_exercise_library(
     p_search_text TEXT DEFAULT NULL
@@ -917,6 +902,10 @@ BEGIN
         RAISE EXCEPTION 'Cannot add a set to a session that is not In Progress';
     END IF;
 
+    IF p_rpe IS NOT NULL AND (p_rpe < 0 OR p_rpe > 10) THEN
+        RAISE EXCEPTION 'RPE must be between 0 and 10';
+    END IF;
+
     -- Get next available set_log number for the given parent record_log
     SELECT COALESCE(MAX(sl.number), 0) + 1
     INTO return_next_number
@@ -992,6 +981,10 @@ BEGIN
 
     IF v_status <> 'In Progress' THEN
         RAISE EXCEPTION 'Cannot update a set in a session that is not In Progress';
+    END IF;
+
+    IF p_rpe IS NOT NULL AND (p_rpe < 0 OR p_rpe > 10) THEN
+        RAISE EXCEPTION 'RPE must be between 0 and 10';
     END IF;
 
     -- Update all editable fields and return the new row info
@@ -1112,6 +1105,21 @@ BEGIN
         RAISE EXCEPTION 'Only In Progress sessions can be finished';
     END IF;
 
+    IF p_difficulty_rating IS NOT NULL 
+        AND (p_difficulty_rating < 0 OR p_difficulty_rating > 10) THEN
+        RAISE EXCEPTION 'Difficulty Rating must be between 0 and 10';
+    END IF;
+
+    IF p_enjoyment_rating IS NOT NULL 
+        AND (p_enjoyment_rating < 0 OR p_enjoyment_rating > 10) THEN
+        RAISE EXCEPTION 'Enjoyment Rating must be between 0 and 10';
+    END IF;
+
+    IF p_energy_level_rating IS NOT NULL 
+        AND (p_energy_level_rating < 0 OR p_energy_level_rating > 10) THEN
+        RAISE EXCEPTION 'Energy Level Rating must be between 0 and 10';
+    END IF;
+
     -- Update the workout session so it's completed and return the row data
     RETURN QUERY
     UPDATE workout_session ws
@@ -1136,14 +1144,35 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION fn_fetch_session_state(
+CREATE OR REPLACE FUNCTION fn_list_workout_sessions(
     p_user_id BIGINT,
-    p_workout_session_id BIGINT
+    p_workout_id BIGINT
 )
-RETURNS JSONB
+RETURNS TABLE (
+    workout_session_id BIGINT,
+    start_date_time TIMESTAMP,
+    completion_status workout_session_status,
+    notes TEXT,
+    exercise_count INT
+)
 LANGUAGE sql
 AS $$
-    SELECT fn_get_tracking_payload(p_user_id, p_workout_session_id)
+    SELECT
+        ws.workout_session_id,
+        ws.start_date_time,
+        ws.completion_status,
+        ws.notes,
+        COUNT(rl.record_log_id) AS exercise_count
+    FROM workout_session ws
+    INNER JOIN workout w 
+        ON w.workout_id = ws.workout_id
+    LEFT JOIN record_log rl 
+        ON rl.workout_session_id = ws.workout_session_id
+    WHERE w.user_id = p_user_id
+        AND ws.workout_id = p_workout_id
+    GROUP BY ws.workout_session_id, ws.start_date_time, 
+        ws.completion_status, ws.notes
+    ORDER BY ws.start_date_time DESC;
 $$;
 
 CREATE OR REPLACE FUNCTION trg_block_finalized_session_edits()

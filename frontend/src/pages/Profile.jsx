@@ -4,12 +4,6 @@ import { useAuth } from '../context/AuthContext'
 
 
 
-const mockAchievements = [
-  { achievement_id: 1, name: 'First Workout', description: 'Logged your first session', date_earned: '2026-01-10' },
-  { achievement_id: 2, name: '30-Day Streak', description: 'Worked out 30 days in a row', date_earned: '2026-02-09' },
-  { achievement_id: 3, name: 'Century Club', description: 'Logged 100 total sets', date_earned: '2026-03-20' },
-]
-
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 function parseGoalDate(dateStr) {
@@ -97,9 +91,17 @@ export default function Profile() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
+  const [pwOpen, setPwOpen] = useState(false)
+  const [pwDraft, setPwDraft] = useState({ current: '', next: '', confirm: '' })
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwError, setPwError] = useState(null)
+  const [pwSuccess, setPwSuccess] = useState(false)
+
   const [measurements, setMeasurements] = useState([])
 
   const [goals, setGoals] = useState([])
+
+  const [achievements, setAchievements] = useState([])
 
   const [friends, setFriends] = useState([])
   const [friendsLoading, setFriendsLoading] = useState(true)
@@ -121,6 +123,9 @@ export default function Profile() {
       .then(r => r.json())
       .then(data => { if (data.status === 'ok') setFriends(data.friends) })
       .finally(() => setFriendsLoading(false))
+    fetch(`/api/profile/${user.user_id}/achievements`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { if (data.status === 'ok') setAchievements(data.achievements) })
   }, [user])
 
   async function handleAddFriend(e) {
@@ -276,6 +281,44 @@ export default function Profile() {
 
   const set = (field) => (val) => setDraft(d => ({ ...d, [field]: val }))
 
+  async function savePassword() {
+    setPwError(null)
+    setPwSuccess(false)
+    if (!pwDraft.current || !pwDraft.next) {
+      setPwError('All fields are required.')
+      return
+    }
+    if (pwDraft.next !== pwDraft.confirm) {
+      setPwError('New passwords do not match.')
+      return
+    }
+    if (pwDraft.next.length < 6) {
+      setPwError('New password must be at least 6 characters.')
+      return
+    }
+    setPwSaving(true)
+    try {
+      const res = await fetch(`/api/profile/${user.user_id}/password`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_password: pwDraft.current, new_password: pwDraft.next }),
+      })
+      const data = await res.json()
+      if (data.status === 'ok') {
+        setPwSuccess(true)
+        setPwDraft({ current: '', next: '', confirm: '' })
+        setPwOpen(false)
+      } else {
+        setPwError(data.message || 'Failed to change password.')
+      }
+    } catch {
+      setPwError('Network error.')
+    } finally {
+      setPwSaving(false)
+    }
+  }
+
   const initials = `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
 
   return (
@@ -288,9 +331,12 @@ export default function Profile() {
         <div className="dashboard-card">
           <div className="flex-header">
             <span className="panel-title">IDENTITY</span>
-            {/* Only the authenticated user sees edit controls */}
             {!editing
-              ? <button className="btn btn--outline" style={{ fontSize: 11, padding: '4px 12px' }} onClick={startEdit}>EDIT</button>
+              ? <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {pwSuccess && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--success)' }}>PASSWORD UPDATED</span>}
+                  <button className="btn btn--ghost" style={{ fontSize: 11, padding: '4px 12px', color: 'var(--text-muted)' }} onClick={() => { setPwOpen(true); setPwSuccess(false) }}>PASSWORD</button>
+                  <button className="btn btn--outline" style={{ fontSize: 11, padding: '4px 12px' }} onClick={startEdit}>EDIT</button>
+                </div>
               : <div style={{ display: 'flex', gap: 8 }}>
                   <button className="btn btn--accent" style={{ fontSize: 11, padding: '4px 12px' }} onClick={saveEdit} disabled={saving}>
                     {saving ? 'SAVING…' : 'SAVE'}
@@ -368,6 +414,70 @@ export default function Profile() {
           )}
         </div>
       </div>
+
+      {/* ── Change Password Modal ── */}
+      {pwOpen && (
+        <div className="overlay" onClick={() => { setPwOpen(false); setPwError(null); setPwDraft({ current: '', next: '', confirm: '' }) }}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400, width: '100%' }}>
+            <button className="modal-close" onClick={() => { setPwOpen(false); setPwError(null); setPwDraft({ current: '', next: '', confirm: '' }) }}>✕</button>
+
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, marginBottom: 4 }}>CHANGE PASSWORD</h2>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', marginBottom: 24 }}>@{user.username}</p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <span className="stat-label" style={{ display: 'block', marginBottom: 6 }}>CURRENT PASSWORD</span>
+                <input
+                  className="profile-edit-input"
+                  type="password"
+                  placeholder="Enter current password"
+                  value={pwDraft.current}
+                  onChange={e => setPwDraft(d => ({ ...d, current: e.target.value }))}
+                  autoComplete="current-password"
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <span className="stat-label" style={{ display: 'block', marginBottom: 6 }}>NEW PASSWORD</span>
+                <input
+                  className="profile-edit-input"
+                  type="password"
+                  placeholder="At least 6 characters"
+                  value={pwDraft.next}
+                  onChange={e => setPwDraft(d => ({ ...d, next: e.target.value }))}
+                  autoComplete="new-password"
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <span className="stat-label" style={{ display: 'block', marginBottom: 6 }}>CONFIRM NEW PASSWORD</span>
+                <input
+                  className="profile-edit-input"
+                  type="password"
+                  placeholder="Repeat new password"
+                  value={pwDraft.confirm}
+                  onChange={e => setPwDraft(d => ({ ...d, confirm: e.target.value }))}
+                  autoComplete="new-password"
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              {pwError && (
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--danger)', margin: 0 }}>{pwError}</p>
+              )}
+
+              <button
+                className="btn btn--accent"
+                style={{ width: '100%', padding: '10px', fontSize: 13, marginTop: 4 }}
+                onClick={savePassword}
+                disabled={pwSaving}
+              >
+                {pwSaving ? 'SAVING…' : 'UPDATE PASSWORD'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Goals + Friends ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
@@ -502,9 +612,14 @@ export default function Profile() {
 
       {/* ── Achievements ── */}
       <div className="dashboard-card full-width">
-        <div className="panel-title">ACHIEVEMENTS — {mockAchievements.length}</div>
+        <div className="panel-title">ACHIEVEMENTS — {achievements.length}</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-          {mockAchievements.map(a => (
+          {achievements.length === 0 && (
+            <span style={{ fontSize: 13, color: 'var(--text-muted)', gridColumn: '1/-1' }}>
+              No achievements yet. Complete a workout to get started.
+            </span>
+          )}
+          {achievements.map(a => (
             <div key={a.achievement_id} style={{
               background: 'var(--bg)', border: '1px solid var(--border)',
               padding: 16, display: 'flex', flexDirection: 'column', gap: 6,

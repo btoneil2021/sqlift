@@ -358,7 +358,7 @@ function emptyMeasurement() {
 
 const CAL_DAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 
-function WorkoutCalendar({ sessions }) {
+function WorkoutCalendar({ sessions, muscleVolumeByDate }) {
   const today = new Date()
   const [calYear, setCalYear] = useState(today.getFullYear())
   const [calMonth, setCalMonth] = useState(today.getMonth()) // 0-based
@@ -370,6 +370,29 @@ function WorkoutCalendar({ sessions }) {
     if (!sessionMap[dateKey]) sessionMap[dateKey] = []
     sessionMap[dateKey].push(s)
   }
+
+  const now = new Date()
+  const weekStart = new Date(now)
+  weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7)) // Monday
+  weekStart.setHours(0, 0, 0, 0)
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+
+  const weeklyMuscle = {}
+  const monthlyMuscle = {}
+  for (const [dateStr, muscles] of Object.entries(muscleVolumeByDate || {})) {
+    const d = new Date(dateStr + 'T00:00:00')
+    const inWeek = d >= weekStart
+    const inMonth = d >= monthStart
+    for (const [muscle, vol] of Object.entries(muscles)) {
+      if (inWeek) weeklyMuscle[muscle] = (weeklyMuscle[muscle] || 0) + vol
+      if (inMonth) monthlyMuscle[muscle] = (monthlyMuscle[muscle] || 0) + vol
+    }
+  }
+
+  const topWeeklyMuscle = Object.entries(weeklyMuscle).sort((a, b) => b[1] - a[1])[0] ?? null
+  const topMonthlyMuscle = Object.entries(monthlyMuscle).sort((a, b) => b[1] - a[1])[0] ?? null
+  const weeklyTotalVol = Object.values(weeklyMuscle).reduce((a, b) => a + b, 0)
+  const monthlyTotalVol = Object.values(monthlyMuscle).reduce((a, b) => a + b, 0)
 
   const firstDay = new Date(calYear, calMonth, 1)
   const lastDay = new Date(calYear, calMonth + 1, 0)
@@ -402,6 +425,46 @@ function WorkoutCalendar({ sessions }) {
 
   return (
     <div>
+      {/* Weekly / Monthly muscle summaries */}
+      {(topWeeklyMuscle || topMonthlyMuscle) && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', padding: '10px 14px' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.07em', display: 'block', marginBottom: 4 }}>
+              THIS WEEK
+            </span>
+            {topWeeklyMuscle ? (
+              <>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.03em', display: 'block' }}>
+                  {topWeeklyMuscle[0]}
+                </span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
+                  {Math.round(topWeeklyMuscle[1])} kg · {Math.round(weeklyTotalVol)} kg total
+                </span>
+              </>
+            ) : (
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>No workouts</span>
+            )}
+          </div>
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', padding: '10px 14px' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.07em', display: 'block', marginBottom: 4 }}>
+              THIS MONTH
+            </span>
+            {topMonthlyMuscle ? (
+              <>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.03em', display: 'block' }}>
+                  {topMonthlyMuscle[0]}
+                </span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
+                  {Math.round(topMonthlyMuscle[1])} kg · {Math.round(monthlyTotalVol)} kg total
+                </span>
+              </>
+            ) : (
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>No workouts</span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Month nav */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <button
@@ -534,6 +597,44 @@ function WorkoutCalendar({ sessions }) {
                   )}
                 </div>
               ))}
+
+              {selectedKey && muscleVolumeByDate?.[selectedKey] && (() => {
+                const dayMuscles = Object.entries(muscleVolumeByDate[selectedKey])
+                  .sort((a, b) => b[1] - a[1])
+                const dayTotal = dayMuscles.reduce((sum, [, v]) => sum + v, 0)
+                return (
+                  <div style={{ marginTop: 4 }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>
+                      VOLUME BY MUSCLE — {Math.round(dayTotal)} kg total
+                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {dayMuscles.map(([muscle, vol]) => {
+                        const pct = dayTotal > 0 ? (vol / dayTotal) * 100 : 0
+                        return (
+                          <div key={muscle}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                                {muscle}
+                              </span>
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
+                                {Math.round(vol)} kg
+                              </span>
+                            </div>
+                            <div style={{ height: 3, background: 'var(--border)', borderRadius: 2 }}>
+                              <div style={{
+                                height: '100%',
+                                width: `${pct}%`,
+                                background: 'var(--accent)',
+                                borderRadius: 2,
+                              }} />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
           )}
         </div>
@@ -573,6 +674,9 @@ export default function Stats() {
   const [selectedExercise, setSelectedExercise] = useState(null)
   const [exerciseProgRange, setExerciseProgRange] = useState('3M')
   const [showExFilterPanel, setShowExFilterPanel] = useState(false)
+
+  const [muscleVolumeByDate, setMuscleVolumeByDate] = useState({})
+  const [favouriteMuscle, setFavouriteMuscle] = useState(null)
 
   // ── Hero numbers ──
   const [heroStats, setHeroStats] = useState(null)
@@ -619,6 +723,15 @@ export default function Stats() {
         if (data.status === 'ok') setHeroStats(data.stats)
       })
       .finally(() => setHeroLoading(false))
+
+    fetch(`/api/stats/${user.user_id}/muscle-volume`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'ok') {
+          setMuscleVolumeByDate(data.by_date || {})
+          setFavouriteMuscle(data.favourite_muscle || null)
+        }
+      })
   }, [user])
 
   async function submitMeasurement(e) {
@@ -1025,7 +1138,7 @@ export default function Stats() {
           {historyLoading ? (
             <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)', paddingTop: 8 }}>Loading…</p>
           ) : (
-            <WorkoutCalendar sessions={workoutHistory} />
+            <WorkoutCalendar sessions={workoutHistory} muscleVolumeByDate={muscleVolumeByDate} />
           )}
         </div>
 
@@ -1087,6 +1200,23 @@ export default function Stats() {
                   letterSpacing: '0.03em',
                 }}>
                   {heroStats.top_exercise_by_volume}
+                </span>
+              </div>
+            )}
+            {favouriteMuscle && (
+              <div className="stat-item" style={{ gridColumn: 'span 2' }}>
+                <span className="stat-label">FAVOURITE MUSCLE</span>
+                <span style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 20,
+                  color: 'var(--accent)',
+                  lineHeight: 1.2,
+                  marginTop: 2,
+                  display: 'block',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.03em',
+                }}>
+                  {favouriteMuscle}
                 </span>
               </div>
             )}

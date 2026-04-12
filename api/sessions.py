@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, session
 from psycopg.rows import dict_row
 
-from api.utils import api_route, DB_SCHEMA
+from api.utils import api_route, DB_SCHEMA, db_error_message
 
 sessions_bp = Blueprint('sessions', __name__)
 
@@ -48,13 +48,17 @@ def add_record(conn, session_id):
     exercise_id = data.get("exercise_id")
     if not exercise_id:
         return jsonify(status="error", message="exercise_id is required."), 400
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            f"SELECT * FROM {DB_SCHEMA}.fn_add_record_log(%s, %s, %s)",
-            (user_id, session_id, exercise_id)
-        )
-        row = cur.fetchone()
-        conn.commit()
+    try:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"SELECT * FROM {DB_SCHEMA}.fn_add_record_log(%s, %s, %s)",
+                (user_id, session_id, exercise_id)
+            )
+            row = cur.fetchone()
+            conn.commit()
+    except Exception as exc:
+        conn.rollback()
+        return jsonify(status="error", message=db_error_message(exc)), 400
     return jsonify(status="ok", record_log_id=row["record_log_id"], assigned_number=row["assigned_number"]), 201
 
 
@@ -64,12 +68,16 @@ def delete_record(conn, record_log_id):
     user_id, err = _require_user()
     if err:
         return err
-    with conn.cursor() as cur:
-        cur.execute(
-            f"SELECT {DB_SCHEMA}.fn_delete_record_log(%s, %s)",
-            (user_id, record_log_id)
-        )
-        conn.commit()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"SELECT {DB_SCHEMA}.fn_delete_record_log(%s, %s)",
+                (user_id, record_log_id)
+            )
+            conn.commit()
+    except Exception as exc:
+        conn.rollback()
+        return jsonify(status="error", message=db_error_message(exc)), 400
     return jsonify(status="ok")
 
 
@@ -89,18 +97,22 @@ def add_set(conn, record_log_id):
     rpe       = data.get("rpe")
     rest_time = data.get("rest_time") or None   # expected as "HH:MM:SS" string or null
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            f"""SELECT * FROM {DB_SCHEMA}.fn_add_set_log(
-                %s::bigint, %s::bigint,
-                %s::{DB_SCHEMA}.set_type,
-                %s::numeric, %s::integer, %s::numeric,
-                %s::interval
-            )""",
-            (user_id, record_log_id, set_type, weight, reps, rpe, rest_time)
-        )
-        row = cur.fetchone()
-        conn.commit()
+    try:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"""SELECT * FROM {DB_SCHEMA}.fn_add_set_log(
+                    %s::bigint, %s::bigint,
+                    %s::{DB_SCHEMA}.set_type,
+                    %s::numeric, %s::integer, %s::numeric,
+                    %s::interval
+                )""",
+                (user_id, record_log_id, set_type, weight, reps, rpe, rest_time)
+            )
+            row = cur.fetchone()
+            conn.commit()
+    except Exception as exc:
+        conn.rollback()
+        return jsonify(status="error", message=db_error_message(exc)), 400
     return jsonify(status="ok", set_log_id=row["set_log_id"], assigned_number=row["assigned_number"]), 201
 
 
@@ -118,18 +130,22 @@ def update_set(conn, set_log_id):
     rpe       = data.get("rpe")
     rest_time = data.get("rest_time") or None
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            f"""SELECT * FROM {DB_SCHEMA}.fn_update_set_log(
-                %s::bigint, %s::bigint,
-                %s::{DB_SCHEMA}.set_type,
-                %s::numeric, %s::integer, %s::numeric,
-                %s::interval
-            )""",
-            (user_id, set_log_id, set_type, weight, reps, rpe, rest_time)
-        )
-        row = cur.fetchone()
-        conn.commit()
+    try:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"""SELECT * FROM {DB_SCHEMA}.fn_update_set_log(
+                    %s::bigint, %s::bigint,
+                    %s::{DB_SCHEMA}.set_type,
+                    %s::numeric, %s::integer, %s::numeric,
+                    %s::interval
+                )""",
+                (user_id, set_log_id, set_type, weight, reps, rpe, rest_time)
+            )
+            row = cur.fetchone()
+            conn.commit()
+    except Exception as exc:
+        conn.rollback()
+        return jsonify(status="error", message=db_error_message(exc)), 400
     if not row:
         return jsonify(status="error", message="Set not found."), 404
     return jsonify(status="ok", set=dict(row))
@@ -141,12 +157,16 @@ def delete_set(conn, set_log_id):
     user_id, err = _require_user()
     if err:
         return err
-    with conn.cursor() as cur:
-        cur.execute(
-            f"SELECT {DB_SCHEMA}.fn_delete_set_log(%s, %s)",
-            (user_id, set_log_id)
-        )
-        conn.commit()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"SELECT {DB_SCHEMA}.fn_delete_set_log(%s, %s)",
+                (user_id, set_log_id)
+            )
+            conn.commit()
+    except Exception as exc:
+        conn.rollback()
+        return jsonify(status="error", message=db_error_message(exc)), 400
     return jsonify(status="ok")
 
 
@@ -165,13 +185,17 @@ def finish_session(conn, session_id):
     enjoyment        = data.get("enjoyment_rating")
     energy           = data.get("energy_level_rating")
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            f"SELECT * FROM {DB_SCHEMA}.fn_finish_workout_session(%s, %s, %s, %s, %s, %s)",
-            (user_id, session_id, notes, difficulty, enjoyment, energy)
-        )
-        row = cur.fetchone()
-        conn.commit()
+    try:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"SELECT * FROM {DB_SCHEMA}.fn_finish_workout_session(%s, %s, %s, %s, %s, %s)",
+                (user_id, session_id, notes, difficulty, enjoyment, energy)
+            )
+            row = cur.fetchone()
+            conn.commit()
+    except Exception as exc:
+        conn.rollback()
+        return jsonify(status="error", message=db_error_message(exc)), 400
     if not row:
         return jsonify(status="error", message="Session not found or not in progress."), 404
     return jsonify(status="ok", workout_id=row["workout_id"])
@@ -184,13 +208,17 @@ def abandon_session(conn, session_id):
     user_id, err = _require_user()
     if err:
         return err
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            f"SELECT * FROM {DB_SCHEMA}.fn_finish_workout_session(%s, %s, %s, %s, %s, %s)",
-            (user_id, session_id, "Abandoned", None, None, None)
-        )
-        row = cur.fetchone()
-        conn.commit()
+    try:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"SELECT * FROM {DB_SCHEMA}.fn_finish_workout_session(%s, %s, %s, %s, %s, %s)",
+                (user_id, session_id, "Abandoned", None, None, None)
+            )
+            row = cur.fetchone()
+            conn.commit()
+    except Exception as exc:
+        conn.rollback()
+        return jsonify(status="error", message=db_error_message(exc)), 400
     if not row:
         return jsonify(status="error", message="Session not found or not in progress."), 404
     return jsonify(status="ok", workout_id=row["workout_id"])

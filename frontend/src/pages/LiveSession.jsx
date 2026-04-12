@@ -19,7 +19,7 @@ function emptySetForm() {
 }
 
 // ── Set row (display mode) ────────────────────────────────────────────────────
-function SetRowDisplay({ s, onEdit, onDelete }) {
+function SetRowDisplay({ s, onEdit, onDelete, readOnly }) {
   return (
     <div className="set-row">
       <span className="set-row__num">{String(s.number).padStart(2, '0')}</span>
@@ -43,14 +43,16 @@ function SetRowDisplay({ s, onEdit, onDelete }) {
         <label>REST</label>
         <span className="set-row__value">{s.rest_time || '—'}</span>
       </div>
-      <div className="set-row__actions">
-        <button className="btn btn--ghost btn--sm" style={{ margin: 0 }} onClick={onEdit}>EDIT</button>
-        <button
-          className="btn btn--ghost btn--sm"
-          style={{ margin: 0, color: 'var(--danger)' }}
-          onClick={onDelete}
-        >✕</button>
-      </div>
+      {!readOnly && (
+        <div className="set-row__actions">
+          <button className="btn btn--ghost btn--sm" style={{ margin: 0 }} onClick={onEdit}>EDIT</button>
+          <button
+            className="btn btn--ghost btn--sm"
+            style={{ margin: 0, color: 'var(--danger)' }}
+            onClick={onDelete}
+          >✕</button>
+        </div>
+      )}
     </div>
   )
 }
@@ -162,6 +164,7 @@ export default function LiveSession() {
   const [energy, setEnergy]         = useState('')
   const [finishing, setFinishing]   = useState(false)
   const [finishError, setFinishError] = useState(null)
+  const [sessionError, setSessionError] = useState(null)
 
   const loadSession = useCallback(() => {
     return fetch(`/api/sessions/${id}`, { credentials: 'include' })
@@ -185,64 +188,119 @@ export default function LiveSession() {
   // ── Record operations ───────────────────────────────────────────────────
   async function handleAddRecord(exerciseId) {
     setPickerOpen(false)
-    await fetch(`/api/sessions/${id}/records`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ exercise_id: exerciseId }),
-    })
+    setSessionError(null)
+    try {
+      const res = await fetch(`/api/sessions/${id}/records`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ exercise_id: exerciseId }),
+      })
+      const data = await res.json()
+      if (data.status !== 'ok') {
+        setSessionError(data.message || 'Failed to add record.')
+        return
+      }
+    } catch {
+      setSessionError('Network error.')
+      return
+    }
     await loadSession()
   }
 
   async function handleDeleteRecord(recordLogId) {
     if (!window.confirm('Delete this record and all its sets?')) return
-    await fetch(`/api/records/${recordLogId}`, {
-      method: 'DELETE',
-      credentials: 'include',
-    })
+    setSessionError(null)
+    try {
+      const res = await fetch(`/api/records/${recordLogId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data.status !== 'ok') {
+        setSessionError(data.message || 'Failed to delete record.')
+        return
+      }
+    } catch {
+      setSessionError('Network error.')
+      return
+    }
     await loadSession()
   }
 
   // ── Set operations ──────────────────────────────────────────────────────
   async function handleAddSet(recordLogId, form) {
     setAddingSetFor(null)
-    await fetch(`/api/records/${recordLogId}/sets`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type:      form.type      || null,
-        weight:    form.weight    !== '' ? Number(form.weight)    : null,
-        reps:      form.reps      !== '' ? Number(form.reps)      : null,
-        rpe:       form.rpe       !== '' ? Number(form.rpe)       : null,
-        rest_time: form.rest_time !== '' ? form.rest_time         : null,
-      }),
-    })
+    setSessionError(null)
+    try {
+      const res = await fetch(`/api/records/${recordLogId}/sets`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type:      form.type      || null,
+          weight:    form.weight    !== '' ? Number(form.weight)    : null,
+          reps:      form.reps      !== '' ? Number(form.reps)      : null,
+          rpe:       form.rpe       !== '' ? Number(form.rpe)       : null,
+          rest_time: form.rest_time !== '' ? form.rest_time         : null,
+        }),
+      })
+      const data = await res.json()
+      if (data.status !== 'ok') {
+        setSessionError(data.message || 'Failed to add set.')
+        return
+      }
+    } catch {
+      setSessionError('Network error.')
+      return
+    }
     await loadSession()
   }
 
   async function handleEditSet(setLogId, form) {
     setEditingSetId(null)
-    await fetch(`/api/sets/${setLogId}`, {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type:      form.type      || null,
-        weight:    form.weight    !== '' ? Number(form.weight)    : null,
-        reps:      form.reps      !== '' ? Number(form.reps)      : null,
-        rpe:       form.rpe       !== '' ? Number(form.rpe)       : null,
-        rest_time: form.rest_time !== '' ? form.rest_time         : null,
-      }),
-    })
+    setSessionError(null)
+    try {
+      const res = await fetch(`/api/sets/${setLogId}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type:      form.type      || null,
+          weight:    form.weight    !== '' ? Number(form.weight)    : null,
+          reps:      form.reps      !== '' ? Number(form.reps)      : null,
+          rpe:       form.rpe       !== '' ? Number(form.rpe)       : null,
+          rest_time: form.rest_time !== '' ? form.rest_time         : null,
+        }),
+      })
+      const data = await res.json()
+      if (data.status !== 'ok') {
+        setSessionError(data.message || 'Failed to update set.')
+        return
+      }
+    } catch {
+      setSessionError('Network error.')
+      return
+    }
     await loadSession()
   }
 
   async function handleDeleteSet(setLogId) {
-    await fetch(`/api/sets/${setLogId}`, {
-      method: 'DELETE',
-      credentials: 'include',
-    })
+    setSessionError(null)
+    try {
+      const res = await fetch(`/api/sets/${setLogId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data.status !== 'ok') {
+        setSessionError(data.message || 'Failed to delete set.')
+        return
+      }
+    } catch {
+      setSessionError('Network error.')
+      return
+    }
     await loadSession()
   }
 
@@ -277,6 +335,7 @@ export default function LiveSession() {
 
   async function handleAbandon() {
     if (!window.confirm('Abandon this session? All logged data will be kept.')) return
+    setSessionError(null)
     try {
       const res = await fetch(`/api/sessions/${id}/abandon`, {
         method: 'POST',
@@ -285,8 +344,12 @@ export default function LiveSession() {
       const d = await res.json()
       if (d.status === 'ok') {
         navigate(`/workout/${d.workout_id}`)
+      } else {
+        setSessionError(d.message || 'Failed to abandon session.')
       }
-    } catch {}
+    } catch {
+      setSessionError('Network error.')
+    }
   }
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -312,34 +375,53 @@ export default function LiveSession() {
 
   const { session: sess, planned_exercises, records } = data
   const sortedRecords = [...records].sort((a, b) => a.number - b.number)
+  const isInProgress = sess.completion_status === 'In Progress'
+  const isAbandoned  = !isInProgress && sess.notes === 'Abandoned'
 
   return (
     <Layout title={`SESSION — ${sess.workout_name.toUpperCase()}`}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-        {/* ── Live header ── */}
+        {/* ── Header ── */}
         <div className="dashboard-card">
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
                 <h2 style={{ fontSize: 28, margin: 0 }}>{sess.workout_name}</h2>
-                <span className="pill pill--warning">IN PROGRESS</span>
+                {isInProgress && <span className="pill pill--warning">IN PROGRESS</span>}
+                {!isInProgress && !isAbandoned && <span className="pill pill--success">COMPLETED</span>}
+                {isAbandoned && <span className="pill pill--danger">ABANDONED</span>}
               </div>
-              <span className="data-monospace text-muted" style={{ fontSize: 12 }}>
-                STARTED {fmtDate(sess.start_date_time)} AT {fmtTime(sess.start_date_time)}
-              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span className="data-monospace text-muted" style={{ fontSize: 12 }}>
+                  STARTED {fmtDate(sess.start_date_time)} AT {fmtTime(sess.start_date_time)}
+                </span>
+                {!isInProgress && sess.end_date_time && (
+                  <span className="data-monospace text-muted" style={{ fontSize: 12 }}>
+                    ENDED {fmtDate(sess.end_date_time)} AT {fmtTime(sess.end_date_time)}
+                  </span>
+                )}
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
-              <button
-                className="btn btn--danger btn--sm"
-                style={{ margin: 0 }}
-                onClick={handleAbandon}
-              >
-                ABANDON
-              </button>
-            </div>
+            {isInProgress && (
+              <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+                <button
+                  className="btn btn--danger btn--sm"
+                  style={{ margin: 0 }}
+                  onClick={handleAbandon}
+                >
+                  ABANDON
+                </button>
+              </div>
+            )}
           </div>
         </div>
+
+        {sessionError && (
+          <p className="data-monospace" style={{ color: 'var(--danger)', fontSize: 12, marginTop: -8 }}>
+            {sessionError}
+          </p>
+        )}
 
         {/* ── Record cards ── */}
         {sortedRecords.map(rec => {
@@ -353,13 +435,15 @@ export default function LiveSession() {
                 <span className="data-monospace text-muted" style={{ fontSize: 11 }}>
                   {rec.set_count} {rec.set_count === 1 ? 'SET' : 'SETS'}
                 </span>
-                <button
-                  className="btn btn--ghost btn--sm"
-                  style={{ margin: 0, color: 'var(--danger)' }}
-                  onClick={() => handleDeleteRecord(rec.record_log_id)}
-                >
-                  ✕ DELETE
-                </button>
+                {isInProgress && (
+                  <button
+                    className="btn btn--ghost btn--sm"
+                    style={{ margin: 0, color: 'var(--danger)' }}
+                    onClick={() => handleDeleteRecord(rec.record_log_id)}
+                  >
+                    ✕ DELETE
+                  </button>
+                )}
               </div>
 
               <div className="record-card__body">
@@ -367,7 +451,7 @@ export default function LiveSession() {
                   <p className="data-monospace text-muted" style={{ fontSize: 11 }}>No sets logged yet.</p>
                 )}
                 {sortedSets.map(s => (
-                  editingSetId === s.set_log_id
+                  isInProgress && editingSetId === s.set_log_id
                     ? <SetRowEdit
                         key={s.set_log_id}
                         initial={s}
@@ -377,42 +461,46 @@ export default function LiveSession() {
                     : <SetRowDisplay
                         key={s.set_log_id}
                         s={s}
+                        readOnly={!isInProgress}
                         onEdit={() => setEditingSetId(s.set_log_id)}
                         onDelete={() => handleDeleteSet(s.set_log_id)}
                       />
                 ))}
 
-                {addingSetFor === rec.record_log_id
-                  ? <AddSetForm
-                      onSave={(form) => handleAddSet(rec.record_log_id, form)}
-                      onCancel={() => setAddingSetFor(null)}
-                    />
-                  : (
-                    <button
-                      className="btn btn--outline btn--sm"
-                      style={{ margin: 0, marginTop: 8, alignSelf: 'flex-start' }}
-                      onClick={() => { setAddingSetFor(rec.record_log_id); setEditingSetId(null) }}
-                    >
-                      + ADD SET
-                    </button>
-                  )
-                }
+                {isInProgress && (
+                  addingSetFor === rec.record_log_id
+                    ? <AddSetForm
+                        onSave={(form) => handleAddSet(rec.record_log_id, form)}
+                        onCancel={() => setAddingSetFor(null)}
+                      />
+                    : (
+                      <button
+                        className="btn btn--outline btn--sm"
+                        style={{ margin: 0, marginTop: 8, alignSelf: 'flex-start' }}
+                        onClick={() => { setAddingSetFor(rec.record_log_id); setEditingSetId(null) }}
+                      >
+                        + ADD SET
+                      </button>
+                    )
+                )}
               </div>
             </div>
           )
         })}
 
         {/* ── Add record button ── */}
-        <button
-          className="btn btn--outline btn--full"
-          style={{ margin: 0 }}
-          onClick={() => { setPickerOpen(p => !p); setAddingSetFor(null); setEditingSetId(null) }}
-        >
-          {pickerOpen ? '— CLOSE EXERCISE PICKER' : '+ ADD RECORD'}
-        </button>
+        {isInProgress && (
+          <button
+            className="btn btn--outline btn--full"
+            style={{ margin: 0 }}
+            onClick={() => { setPickerOpen(p => !p); setAddingSetFor(null); setEditingSetId(null) }}
+          >
+            {pickerOpen ? '— CLOSE EXERCISE PICKER' : '+ ADD RECORD'}
+          </button>
+        )}
 
         {/* ── Exercise picker ── */}
-        {pickerOpen && (
+        {isInProgress && pickerOpen && (
           <div className="dashboard-card">
             <div className="panel-title">SELECT EXERCISE</div>
             {planned_exercises.length === 0 ? (
@@ -441,89 +529,133 @@ export default function LiveSession() {
           </div>
         )}
 
-        {/* ── End session panel ── */}
-        <div className="dashboard-card">
-          <div className="panel-title">END SESSION</div>
+        {/* ── End session panel / Summary ── */}
+        {isInProgress ? (
+          <div className="dashboard-card">
+            <div className="panel-title">END SESSION</div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <label>
-              <span className="field-label">SESSION NOTES</span>
-              <textarea
-                className="field-textarea"
-                placeholder="How did it go?"
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-              />
-            </label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <label>
+                <span className="field-label">SESSION NOTES</span>
+                <textarea
+                  className="field-textarea"
+                  placeholder="How did it go?"
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                />
+              </label>
 
-            <div className="stats-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
-              <label>
-                <span className="field-label">DIFFICULTY (0–10)</span>
-                <input
-                  className="field-input"
-                  type="number"
-                  min="0"
-                  max="10"
-                  step="1"
-                  placeholder="—"
-                  value={difficulty}
-                  onChange={e => setDifficulty(e.target.value)}
-                  style={{ fontFamily: 'var(--font-mono)' }}
-                />
-              </label>
-              <label>
-                <span className="field-label">ENJOYMENT (0–10)</span>
-                <input
-                  className="field-input"
-                  type="number"
-                  min="0"
-                  max="10"
-                  step="1"
-                  placeholder="—"
-                  value={enjoyment}
-                  onChange={e => setEnjoyment(e.target.value)}
-                  style={{ fontFamily: 'var(--font-mono)' }}
-                />
-              </label>
-              <label>
-                <span className="field-label">ENERGY (0–10)</span>
-                <input
-                  className="field-input"
-                  type="number"
-                  min="0"
-                  max="10"
-                  step="1"
-                  placeholder="—"
-                  value={energy}
-                  onChange={e => setEnergy(e.target.value)}
-                  style={{ fontFamily: 'var(--font-mono)' }}
-                />
-              </label>
+              <div className="stats-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+                <label>
+                  <span className="field-label">DIFFICULTY (0–10)</span>
+                  <input
+                    className="field-input"
+                    type="number"
+                    min="0"
+                    max="10"
+                    step="1"
+                    placeholder="—"
+                    value={difficulty}
+                    onChange={e => setDifficulty(e.target.value)}
+                    style={{ fontFamily: 'var(--font-mono)' }}
+                  />
+                </label>
+                <label>
+                  <span className="field-label">ENJOYMENT (0–10)</span>
+                  <input
+                    className="field-input"
+                    type="number"
+                    min="0"
+                    max="10"
+                    step="1"
+                    placeholder="—"
+                    value={enjoyment}
+                    onChange={e => setEnjoyment(e.target.value)}
+                    style={{ fontFamily: 'var(--font-mono)' }}
+                  />
+                </label>
+                <label>
+                  <span className="field-label">ENERGY (0–10)</span>
+                  <input
+                    className="field-input"
+                    type="number"
+                    min="0"
+                    max="10"
+                    step="1"
+                    placeholder="—"
+                    value={energy}
+                    onChange={e => setEnergy(e.target.value)}
+                    style={{ fontFamily: 'var(--font-mono)' }}
+                  />
+                </label>
+              </div>
+
+              {finishError && (
+                <p className="data-monospace" style={{ color: 'var(--danger)', fontSize: 12 }}>{finishError}</p>
+              )}
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
+                  className="btn btn--accent"
+                  style={{ flex: 1, margin: 0, fontSize: 15, padding: '12px 24px', fontFamily: 'var(--font-display)', letterSpacing: '0.5px' }}
+                  onClick={handleFinish}
+                  disabled={finishing}
+                >
+                  {finishing ? 'FINISHING...' : 'FINISH SESSION ✓'}
+                </button>
+                <button
+                  className="btn btn--ghost"
+                  style={{ margin: 0, color: 'var(--danger)', fontSize: 13 }}
+                  onClick={handleAbandon}
+                >
+                  ABANDON
+                </button>
+              </div>
             </div>
+          </div>
+        ) : (
+          <div className="dashboard-card">
+            <div className="panel-title">SESSION SUMMARY</div>
 
-            {finishError && (
-              <p className="data-monospace" style={{ color: 'var(--danger)', fontSize: 12 }}>{finishError}</p>
-            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <span className="field-label">SESSION NOTES</span>
+                <p className="data-monospace" style={{ fontSize: 13, marginTop: 4, color: isAbandoned ? 'var(--text-muted)' : 'inherit' }}>
+                  {isAbandoned ? 'Session was abandoned.' : (sess.notes || 'No notes.')}
+                </p>
+              </div>
 
-            <div style={{ display: 'flex', gap: 12 }}>
+              <div className="stats-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+                <div>
+                  <span className="field-label">DIFFICULTY</span>
+                  <p className="data-monospace" style={{ fontSize: 20, marginTop: 4 }}>
+                    {sess.difficulty_rating ?? '—'}
+                  </p>
+                </div>
+                <div>
+                  <span className="field-label">ENJOYMENT</span>
+                  <p className="data-monospace" style={{ fontSize: 20, marginTop: 4 }}>
+                    {sess.enjoyment_rating ?? '—'}
+                  </p>
+                </div>
+                <div>
+                  <span className="field-label">ENERGY</span>
+                  <p className="data-monospace" style={{ fontSize: 20, marginTop: 4 }}>
+                    {sess.energy_level_rating ?? '—'}
+                  </p>
+                </div>
+              </div>
+
               <button
-                className="btn btn--accent"
-                style={{ flex: 1, margin: 0, fontSize: 15, padding: '12px 24px', fontFamily: 'var(--font-display)', letterSpacing: '0.5px' }}
-                onClick={handleFinish}
-                disabled={finishing}
+                className="btn btn--outline"
+                style={{ margin: 0, alignSelf: 'flex-start' }}
+                onClick={() => navigate(`/workout/${sess.workout_id}`)}
               >
-                {finishing ? 'FINISHING...' : 'FINISH SESSION ✓'}
-              </button>
-              <button
-                className="btn btn--ghost"
-                style={{ margin: 0, color: 'var(--danger)', fontSize: 13 }}
-                onClick={handleAbandon}
-              >
-                ABANDON
+                ← BACK TO WORKOUT
               </button>
             </div>
           </div>
-        </div>
+        )}
 
       </div>
     </Layout>

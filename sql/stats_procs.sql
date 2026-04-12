@@ -425,3 +425,60 @@ BEGIN
     ORDER BY pr.weight DESC;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Returns total volume (kg) per muscle group per session date for a user
+CREATE OR REPLACE FUNCTION get_muscle_volume_by_session(p_user_id BIGINT)
+RETURNS TABLE (
+    session_date    DATE,
+    muscle_name     TEXT,
+    volume_kg       NUMERIC
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        ws.start_date_time::DATE AS session_date,
+        mg.name                  AS muscle_name,
+        SUM(sl.weight * sl.reps) AS volume_kg
+    FROM sqlift.set_log sl
+    JOIN sqlift.record_log rl        ON rl.record_log_id        = sl.record_log_id
+    JOIN sqlift.workout_session ws   ON ws.workout_session_id   = rl.workout_session_id
+    JOIN sqlift.workout w            ON w.workout_id            = ws.workout_id
+    JOIN sqlift.exercise_muscle_group emg ON emg.exercise_id    = rl.exercise_id
+    JOIN sqlift.muscle_group mg      ON mg.muscle_id            = emg.muscle_id
+    WHERE w.user_id = p_user_id
+      AND ws.completion_status = 'Completed'
+      AND sl.weight IS NOT NULL
+      AND sl.reps   IS NOT NULL
+      AND sl.weight > 0
+    GROUP BY ws.start_date_time::DATE, mg.muscle_id, mg.name
+    ORDER BY session_date DESC, volume_kg DESC;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Returns the muscle group the user has accumulated the most volume in across all logs
+CREATE OR REPLACE FUNCTION get_favourite_muscle(p_user_id BIGINT)
+RETURNS TABLE (
+    muscle_name  TEXT,
+    total_volume NUMERIC
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        mg.name                  AS muscle_name,
+        SUM(sl.weight * sl.reps) AS total_volume
+    FROM sqlift.set_log sl
+    JOIN sqlift.record_log rl        ON rl.record_log_id        = sl.record_log_id
+    JOIN sqlift.workout_session ws   ON ws.workout_session_id   = rl.workout_session_id
+    JOIN sqlift.workout w            ON w.workout_id            = ws.workout_id
+    JOIN sqlift.exercise_muscle_group emg ON emg.exercise_id    = rl.exercise_id
+    JOIN sqlift.muscle_group mg      ON mg.muscle_id            = emg.muscle_id
+    WHERE w.user_id = p_user_id
+      AND ws.completion_status = 'Completed'
+      AND sl.weight IS NOT NULL
+      AND sl.reps   IS NOT NULL
+      AND sl.weight > 0
+    GROUP BY mg.muscle_id, mg.name
+    ORDER BY total_volume DESC
+    LIMIT 1;
+END;
+$$ LANGUAGE plpgsql;
