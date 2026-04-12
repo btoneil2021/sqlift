@@ -44,7 +44,7 @@ export default function Landing() {
 function LoginForm({ onSwitch }) {
   const { login } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -53,7 +53,7 @@ function LoginForm({ onSwitch }) {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const result = await login(email, password)
+    const result = await login(identifier, password)
     setLoading(false)
     if (result.ok) {
       navigate('/home')
@@ -65,7 +65,7 @@ function LoginForm({ onSwitch }) {
   return (
     <form className="auth-form" onSubmit={handleSubmit}>
       <h2>Log In</h2>
-      <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required /></label>
+      <label>Username or Email<input type="text" value={identifier} onChange={e => setIdentifier(e.target.value)} placeholder="username or you@example.com" required /></label>
       <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required /></label>
       {error && <p className="profile-pw-error">{error}</p>}
       <button type="submit" className="btn btn--primary btn--full" disabled={loading}>{loading ? 'Logging in...' : 'Log In'}</button>

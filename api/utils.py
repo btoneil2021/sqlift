@@ -1,24 +1,19 @@
 import os
 import psycopg
-from psycopg.rows import dict_row
 from flask import jsonify, current_app
 from functools import wraps
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_limiter.errors import RateLimitExceeded
 
-# ── Config ────────────────────────────────────────────────────────────────────
-
-DB_SCHEMA = "sqlift"          # Postgres schema all tables live in
-DB_SSL_MODE = "require"       # SSL mode for psycopg connections
+DB_SCHEMA = "sqlift"
+DB_SSL_MODE = "require"
 RATE_LIMIT_DEFAULT = "40 per minute"
-RATE_LIMIT_STORAGE = "memory://"  # swap to "redis://..." for multi-process
-
-# ─────────────────────────────────────────────────────────────────────────────
+RATE_LIMIT_STORAGE = "memory://"
 
 
 def tbl(name: str) -> str:
-    """Return a fully-qualified, quoted table identifier for the configured schema."""
+    # Returns a fully-qualified quoted table identifier for the configured schema
     return f'{DB_SCHEMA}."{name}"'
 
 
@@ -29,6 +24,7 @@ limiter = Limiter(
 )
 
 def _clean_env_value(value):
+    # Strips whitespace and surrounding quotes from an env var value
     if value is None:
         return None
     value = value.strip()
@@ -37,6 +33,7 @@ def _clean_env_value(value):
     return value
 
 def _get_database_url():
+    # Resolves the database URL from env vars, substituting password placeholder if needed
     url = _clean_env_value(
         os.getenv("DATABASE_URL")
         or os.getenv("SUPABASE_DATABASE_URL")
@@ -58,17 +55,11 @@ def _get_database_url():
     return url
 
 def get_database_url():
+    # Public wrapper to retrieve the resolved database URL
     return _get_database_url()
 
-def fetch_sample_users(conn, limit=3):
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            f"SELECT user_id, username, email FROM {tbl('user')} ORDER BY user_id LIMIT %s",
-            (limit,),
-        )
-        return cur.fetchall()
-
 def postgres_error_hint(exc):
+    # Maps common Postgres connection exceptions to user-friendly hint messages
     message = str(exc)
     if "password authentication failed" in message.lower():
         return (
@@ -89,6 +80,7 @@ def postgres_error_hint(exc):
     return "An error occurred while connecting to the database."
 
 def api_route(limit=None):
+    # Decorator that opens a DB connection and applies an optional rate limit to a route
     def decorator(f):
         decorated_f = f
         if limit:

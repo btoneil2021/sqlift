@@ -333,6 +333,95 @@
 
 /* Textarea */
 .field-textarea {
+/* ── Profile Page ── */
+.profile-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Identity strip */
+.profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.profile-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  border: 2px solid var(--border-bright);
+}
+
+.profile-avatar--initials {
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-avatar--initials span {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.profile-avatar--img {
+  object-fit: cover;
+}
+
+.profile-identity-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profile-username {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--text-h);
+  letter-spacing: -0.5px;
+  line-height: 1;
+  margin: 0;
+}
+
+.profile-username-input {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text-h);
+  background: var(--surface-2);
+  border: 1px solid var(--border-bright);
+  padding: 4px 8px;
+  outline: none;
+  width: 100%;
+  max-width: 300px;
+  border-radius: 2px;
+}
+
+.profile-username-input:focus {
+  border-color: var(--accent);
+}
+
+.profile-fullname {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.profile-name-row {
+  display: flex;
+  gap: 8px;
+}
+
+.profile-name-input {
   font-family: var(--font-body);
   font-size: 14px;
   color: var(--text);
@@ -347,3 +436,156 @@
 }
 .field-textarea:focus { border-color: var(--accent); }
 .field-textarea::placeholder { color: var(--text-muted); opacity: 0.5; }
+  padding: 6px 10px;
+  outline: none;
+  border-radius: 2px;
+  width: 120px;
+}
+
+.profile-name-input:focus {
+  border-color: var(--accent);
+}
+
+.profile-sex-tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 2px 8px;
+  border: 1px solid var(--border-bright);
+  color: var(--text-muted);
+  border-radius: 2px;
+  text-transform: uppercase;
+  align-self: flex-start;
+}
+
+.profile-sex-select {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  outline: none;
+  border-radius: 2px;
+  align-self: flex-start;
+  cursor: pointer;
+}
+
+.profile-sex-select:focus {
+  border-color: var(--accent);
+}
+
+.profile-identity-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  margin-left: auto;
+}
+
+/* Small button variant */
+.btn--sm {
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 8px 16px;
+}
+
+/* Fields grid */
+.profile-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.profile-field-block {
+  background: var(--bg);
+  padding: 14px;
+  border: 1px solid var(--border);
+}
+
+.profile-stat-value {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--text);
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.stat-unit {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Input in stat block */
+.profile-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.profile-input {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  outline: none;
+  border-radius: 2px;
+  width: 100%;
+}
+
+.profile-input:focus {
+  border-color: var(--accent);
+}
+
+.profile-input--stat {
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.profile-input-suffix {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.profile-field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* Password form */
+.profile-pw-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 360px;
+}
+
+.profile-pw-error {
+  font-size: 13px;
+  color: var(--danger);
+  margin: 0;
+}
+
+.profile-pw-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.profile-pw-note {
+  font-size: 11px;
+  color: var(--text-muted);
+}

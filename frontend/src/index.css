@@ -288,6 +288,7 @@ button {
 .border-amber { border-color: var(--accent); color: var(--accent); background: rgba(240, 165, 0, 0.1); }
 .border-slate { border-color: var(--text-muted); }
 .border-danger { border-color: var(--danger); color: var(--danger); background: rgba(224, 82, 82, 0.1); }
+.border-success { border-color: var(--success); color: var(--success); background: rgba(76, 175, 120, 0.1); }
 
 /* Utility Text Colors */
 .text-muted { color: var(--text-muted); }
@@ -355,4 +356,23 @@ button {
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
+}
+
+/* Profile edit inputs */
+.profile-edit-input {
+  background: var(--bg);
+  border: 1px solid var(--border-bright);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 5px 8px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.profile-edit-input:focus {
+  border-color: var(--accent);
+}
+select.profile-edit-input {
+  cursor: pointer;
 }
