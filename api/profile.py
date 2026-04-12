@@ -72,12 +72,8 @@ def update_profile(conn, user_id):
         except Exception as exc:
             conn.rollback()
             msg = str(exc).lower()
-            if "email is already yours" in msg:
-                return jsonify(status="error", message="That email is already your current email."), 409
             if "email already in use" in msg:
                 return jsonify(status="error", message="That email is already associated with another account."), 409
-            if "phone number is already yours" in msg:
-                return jsonify(status="error", message="That phone number is already your current phone number."), 409
             if "phone number already in use" in msg:
                 return jsonify(status="error", message="That phone number is already associated with another account."), 409
             raise

@@ -49,23 +49,9 @@ RETURNS TABLE (
 BEGIN
     IF p_email IS NOT NULL AND EXISTS (
         SELECT 1 FROM sqlift."user" u
-        WHERE u.email = p_email AND u.user_id = p_user_id
-    ) THEN
-        RAISE EXCEPTION 'email is already yours';
-    END IF;
-
-    IF p_email IS NOT NULL AND EXISTS (
-        SELECT 1 FROM sqlift."user" u
         WHERE u.email = p_email AND u.user_id <> p_user_id
     ) THEN
         RAISE EXCEPTION 'email already in use';
-    END IF;
-
-    IF p_phone_num IS NOT NULL AND p_phone_num <> '' AND EXISTS (
-        SELECT 1 FROM sqlift."user" u
-        WHERE u.phone_num = p_phone_num AND u.user_id = p_user_id
-    ) THEN
-        RAISE EXCEPTION 'phone number is already yours';
     END IF;
 
     IF p_phone_num IS NOT NULL AND p_phone_num <> '' AND EXISTS (
