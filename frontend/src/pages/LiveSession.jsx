@@ -230,7 +230,6 @@ export default function LiveSession() {
 
   // ── Set operations ──────────────────────────────────────────────────────
   async function handleAddSet(recordLogId, form) {
-    setAddingSetFor(null)
     setSessionError(null)
     try {
       const res = await fetch(`/api/records/${recordLogId}/sets`, {
@@ -254,11 +253,11 @@ export default function LiveSession() {
       setSessionError('Network error.')
       return
     }
+    setAddingSetFor(null)
     await loadSession()
   }
 
   async function handleEditSet(setLogId, form) {
-    setEditingSetId(null)
     setSessionError(null)
     try {
       const res = await fetch(`/api/sets/${setLogId}`, {
@@ -282,6 +281,7 @@ export default function LiveSession() {
       setSessionError('Network error.')
       return
     }
+    setEditingSetId(null)
     await loadSession()
   }
 

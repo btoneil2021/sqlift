@@ -162,7 +162,7 @@ export default function ViewWorkout() {
           {tags && tags.length > 0 && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
               {tags.map(t => (
-                <span key={t.tag_name} className="tag border-amber">{t.tag_name}</span>
+                <span key={t.tag_name} className="tag" style={{ backgroundColor: `#${t.color_code}`, borderColor: `#${t.color_code}`, color: '#fff' }}>{t.tag_name}</span>
               ))}
             </div>
           )}

@@ -240,28 +240,6 @@ export default function NewWorkout() {
             </div>
           </div>
 
-          {/* Tags */}
-          {refData.tags.length > 0 && (
-            <div className="dashboard-card">
-              <div className="panel-title">TAGS</div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {refData.tags.map(t => {
-                  const active = draft.selectedTags.includes(t.name)
-                  return (
-                    <button
-                      key={t.name}
-                      className={`btn btn--sm ${active ? 'btn--accent' : 'btn--outline'}`}
-                      style={{ margin: 0 }}
-                      onClick={() => toggleTag(t.name)}
-                    >
-                      {t.name}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
           {/* Exercise library search */}
           <div className="dashboard-card">
             <div className="panel-title">EXERCISE LIBRARY</div>
@@ -301,6 +279,33 @@ export default function NewWorkout() {
 
         {/* ── RIGHT PANE ── */}
         <div className="builder-pane">
+
+          {/* Tags */}
+          {refData.tags.length > 0 && (
+            <div className="dashboard-card">
+              <div className="panel-title">TAGS</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {refData.tags.map(t => {
+                  const active = draft.selectedTags.includes(t.name)
+                  return (
+                    <button
+                      key={t.name}
+                      className={`btn btn--sm ${active ? '' : 'btn--outline'}`}
+                      style={active ? {
+                        margin: 0,
+                        backgroundColor: `#${t.color_code}`,
+                        borderColor: `#${t.color_code}`,
+                        color: '#fff',
+                      } : { margin: 0 }}
+                      onClick={() => toggleTag(t.name)}
+                    >
+                      {t.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="dashboard-card" style={{ flex: 1 }}>
             <div className="flex-header">
