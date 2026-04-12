@@ -68,13 +68,8 @@ _CONSTRAINT_MESSAGES = {
     "chk_sl_number": "Set number must be greater than zero.",
     "chk_sl_weight": "Weight cannot be negative.",
     "chk_sl_reps":   "Number of reps must be greater than zero.",
-    "chk_sl_rpe":    "RPE must be between 0 and 10.",
     # record_log
     "chk_rl_number": "Record number must be greater than zero.",
-    # workout_session
-    "chk_ws_difficulty": "Difficulty rating must be between 0 and 10.",
-    "chk_ws_enjoyment":  "Enjoyment rating must be between 0 and 10.",
-    "chk_ws_energy":     "Energy level must be between 0 and 10.",
 }
 
 

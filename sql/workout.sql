@@ -917,6 +917,10 @@ BEGIN
         RAISE EXCEPTION 'Cannot add a set to a session that is not In Progress';
     END IF;
 
+    IF p_rpe IS NOT NULL AND (p_rpe < 0 OR p_rpe > 10) THEN
+        RAISE EXCEPTION 'RPE must be between 0 and 10';
+    END IF;
+
     -- Get next available set_log number for the given parent record_log
     SELECT COALESCE(MAX(sl.number), 0) + 1
     INTO return_next_number
@@ -992,6 +996,10 @@ BEGIN
 
     IF v_status <> 'In Progress' THEN
         RAISE EXCEPTION 'Cannot update a set in a session that is not In Progress';
+    END IF;
+
+    IF p_rpe IS NOT NULL AND (p_rpe < 0 OR p_rpe > 10) THEN
+        RAISE EXCEPTION 'RPE must be between 0 and 10';
     END IF;
 
     -- Update all editable fields and return the new row info
@@ -1110,6 +1118,21 @@ BEGIN
 
     IF v_status <> 'In Progress' THEN
         RAISE EXCEPTION 'Only In Progress sessions can be finished';
+    END IF;
+
+    IF p_difficulty_rating IS NOT NULL 
+        AND (p_difficulty_rating < 0 OR p_difficulty_rating > 10) THEN
+        RAISE EXCEPTION 'Difficulty Rating must be between 0 and 10';
+    END IF;
+
+    IF p_enjoyment_rating IS NOT NULL 
+        AND (p_enjoyment_rating < 0 OR p_enjoyment_rating > 10) THEN
+        RAISE EXCEPTION 'Enjoyment Rating must be between 0 and 10';
+    END IF;
+
+    IF p_energy_level_rating IS NOT NULL 
+        AND (p_energy_level_rating < 0 OR p_energy_level_rating > 10) THEN
+        RAISE EXCEPTION 'Energy Level Rating must be between 0 and 10';
     END IF;
 
     -- Update the workout session so it's completed and return the row data
