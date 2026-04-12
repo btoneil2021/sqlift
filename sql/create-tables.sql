@@ -291,3 +291,14 @@ CREATE TABLE set_log (
   CHECK (reps > 0),
   CHECK (rpe >= 0 AND rpe <= 10)
 );
+
+-- User Points Table
+
+CREATE TABLE IF NOT EXISTS sqlift.user_points (
+    point_id   bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    user_id    bigint NOT NULL REFERENCES sqlift.user(user_id),
+    source     text NOT NULL DEFAULT 'workout_completed',
+    points     integer NOT NULL DEFAULT 10,
+    ref_id     bigint,         -- workout_session_id (SET NULL on delete)
+    earned_at  timestamp NOT NULL DEFAULT NOW()
+);
