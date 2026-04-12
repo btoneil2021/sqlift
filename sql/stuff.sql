@@ -1218,3 +1218,4 @@ BEFORE INSERT OR UPDATE OR DELETE
 ON set_log
 FOR EACH ROW
 EXECUTE FUNCTION trg_block_finalized_session_edits();
+

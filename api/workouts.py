@@ -47,6 +47,23 @@ def search_exercises(conn):
     return jsonify(status="ok", results=results)
 
 
+# ── Workout list ─────────────────────────────────────────────────────────────
+
+@workouts_bp.route("/api/workouts/list")
+@api_route()
+def list_workouts(conn):
+    user_id, err = _require_user()
+    if err:
+        return err
+    with conn.cursor() as cur:
+        cur.execute(
+            f"SELECT {DB_SCHEMA}.fn_list_user_workouts(%s::bigint) AS workouts",
+            (user_id,)
+        )
+        row = cur.fetchone()
+    return jsonify(status="ok", workouts=row[0] if row else [])
+
+
 # ── Workout CRUD ──────────────────────────────────────────────────────────────
 
 @workouts_bp.route("/api/workouts/<int:workout_id>")
