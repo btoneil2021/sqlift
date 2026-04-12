@@ -34,6 +34,7 @@ export default function ViewWorkout() {
   const [deleting, setDeleting]     = useState(false)
   const [deleteError, setDeleteError] = useState(null)
   const [starting, setStarting]     = useState(false)
+  const [startError, setStartError] = useState(null)
 
   useEffect(() => {
     setLoading(true)
@@ -57,6 +58,7 @@ export default function ViewWorkout() {
 
   async function handleStartSession() {
     setStarting(true)
+    setStartError(null)
     try {
       const res = await fetch(`/api/workouts/${id}/sessions`, {
         method: 'POST',
@@ -65,7 +67,11 @@ export default function ViewWorkout() {
       const data = await res.json()
       if (data.status === 'ok') {
         navigate(`/session/${data.workout_session_id}`)
+      } else {
+        setStartError(data.message || 'Failed to start session.')
       }
+    } catch {
+      setStartError('Network error.')
     } finally {
       setStarting(false)
     }
@@ -173,6 +179,12 @@ export default function ViewWorkout() {
             {deleting ? 'DELETING...' : 'DELETE'}
           </button>
         </div>
+
+        {startError && (
+          <p className="data-monospace" style={{ color: 'var(--danger)', fontSize: 12, marginTop: 10 }}>
+            {startError}
+          </p>
+        )}
 
         {deleteError && (
           <p className="data-monospace" style={{ color: 'var(--danger)', fontSize: 12, marginTop: 10 }}>

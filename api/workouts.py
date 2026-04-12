@@ -2,7 +2,7 @@ import json
 from flask import Blueprint, jsonify, request, session
 from psycopg.rows import dict_row
 
-from api.utils import api_route, DB_SCHEMA
+from api.utils import api_route, DB_SCHEMA, db_error_message
 
 workouts_bp = Blueprint('workouts', __name__)
 
@@ -89,10 +89,9 @@ def create_workout(conn):
             conn.commit()
     except Exception as exc:
         conn.rollback()
-        msg = str(exc)
-        if "already exists" in msg.lower():
+        if "already exists" in str(exc).lower():
             return jsonify(status="error", message="A workout with that name already exists."), 409
-        raise
+        return jsonify(status="error", message=db_error_message(exc)), 400
     return jsonify(status="ok", workout_id=workout_id), 201
 
 
@@ -119,7 +118,7 @@ def update_workout(conn, workout_id):
             conn.commit()
     except Exception as exc:
         conn.rollback()
-        raise
+        return jsonify(status="error", message=db_error_message(exc)), 400
     return jsonify(status="ok", workout_id=workout_id)
 
 
@@ -143,7 +142,7 @@ def delete_workout(conn, workout_id):
                 status="error",
                 message="Cannot delete a workout with an active in-progress session."
             ), 409
-        raise
+        return jsonify(status="error", message=db_error_message(exc)), 400
     return jsonify(status="ok")
 
 
@@ -155,13 +154,17 @@ def start_session(conn, workout_id):
     user_id, err = _require_user()
     if err:
         return err
-    with conn.cursor() as cur:
-        cur.execute(
-            f"SELECT {DB_SCHEMA}.fn_start_workout_session(%s, %s)",
-            (user_id, workout_id)
-        )
-        workout_session_id = cur.fetchone()[0]
-        conn.commit()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"SELECT {DB_SCHEMA}.fn_start_workout_session(%s, %s)",
+                (user_id, workout_id)
+            )
+            workout_session_id = cur.fetchone()[0]
+            conn.commit()
+    except Exception as exc:
+        conn.rollback()
+        return jsonify(status="error", message=db_error_message(exc)), 400
     return jsonify(status="ok", workout_session_id=workout_session_id), 201
 
 

@@ -162,6 +162,7 @@ export default function LiveSession() {
   const [energy, setEnergy]         = useState('')
   const [finishing, setFinishing]   = useState(false)
   const [finishError, setFinishError] = useState(null)
+  const [sessionError, setSessionError] = useState(null)
 
   const loadSession = useCallback(() => {
     return fetch(`/api/sessions/${id}`, { credentials: 'include' })
@@ -185,64 +186,119 @@ export default function LiveSession() {
   // ── Record operations ───────────────────────────────────────────────────
   async function handleAddRecord(exerciseId) {
     setPickerOpen(false)
-    await fetch(`/api/sessions/${id}/records`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ exercise_id: exerciseId }),
-    })
+    setSessionError(null)
+    try {
+      const res = await fetch(`/api/sessions/${id}/records`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ exercise_id: exerciseId }),
+      })
+      const data = await res.json()
+      if (data.status !== 'ok') {
+        setSessionError(data.message || 'Failed to add record.')
+        return
+      }
+    } catch {
+      setSessionError('Network error.')
+      return
+    }
     await loadSession()
   }
 
   async function handleDeleteRecord(recordLogId) {
     if (!window.confirm('Delete this record and all its sets?')) return
-    await fetch(`/api/records/${recordLogId}`, {
-      method: 'DELETE',
-      credentials: 'include',
-    })
+    setSessionError(null)
+    try {
+      const res = await fetch(`/api/records/${recordLogId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data.status !== 'ok') {
+        setSessionError(data.message || 'Failed to delete record.')
+        return
+      }
+    } catch {
+      setSessionError('Network error.')
+      return
+    }
     await loadSession()
   }
 
   // ── Set operations ──────────────────────────────────────────────────────
   async function handleAddSet(recordLogId, form) {
     setAddingSetFor(null)
-    await fetch(`/api/records/${recordLogId}/sets`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type:      form.type      || null,
-        weight:    form.weight    !== '' ? Number(form.weight)    : null,
-        reps:      form.reps      !== '' ? Number(form.reps)      : null,
-        rpe:       form.rpe       !== '' ? Number(form.rpe)       : null,
-        rest_time: form.rest_time !== '' ? form.rest_time         : null,
-      }),
-    })
+    setSessionError(null)
+    try {
+      const res = await fetch(`/api/records/${recordLogId}/sets`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type:      form.type      || null,
+          weight:    form.weight    !== '' ? Number(form.weight)    : null,
+          reps:      form.reps      !== '' ? Number(form.reps)      : null,
+          rpe:       form.rpe       !== '' ? Number(form.rpe)       : null,
+          rest_time: form.rest_time !== '' ? form.rest_time         : null,
+        }),
+      })
+      const data = await res.json()
+      if (data.status !== 'ok') {
+        setSessionError(data.message || 'Failed to add set.')
+        return
+      }
+    } catch {
+      setSessionError('Network error.')
+      return
+    }
     await loadSession()
   }
 
   async function handleEditSet(setLogId, form) {
     setEditingSetId(null)
-    await fetch(`/api/sets/${setLogId}`, {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type:      form.type      || null,
-        weight:    form.weight    !== '' ? Number(form.weight)    : null,
-        reps:      form.reps      !== '' ? Number(form.reps)      : null,
-        rpe:       form.rpe       !== '' ? Number(form.rpe)       : null,
-        rest_time: form.rest_time !== '' ? form.rest_time         : null,
-      }),
-    })
+    setSessionError(null)
+    try {
+      const res = await fetch(`/api/sets/${setLogId}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type:      form.type      || null,
+          weight:    form.weight    !== '' ? Number(form.weight)    : null,
+          reps:      form.reps      !== '' ? Number(form.reps)      : null,
+          rpe:       form.rpe       !== '' ? Number(form.rpe)       : null,
+          rest_time: form.rest_time !== '' ? form.rest_time         : null,
+        }),
+      })
+      const data = await res.json()
+      if (data.status !== 'ok') {
+        setSessionError(data.message || 'Failed to update set.')
+        return
+      }
+    } catch {
+      setSessionError('Network error.')
+      return
+    }
     await loadSession()
   }
 
   async function handleDeleteSet(setLogId) {
-    await fetch(`/api/sets/${setLogId}`, {
-      method: 'DELETE',
-      credentials: 'include',
-    })
+    setSessionError(null)
+    try {
+      const res = await fetch(`/api/sets/${setLogId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data.status !== 'ok') {
+        setSessionError(data.message || 'Failed to delete set.')
+        return
+      }
+    } catch {
+      setSessionError('Network error.')
+      return
+    }
     await loadSession()
   }
 
@@ -277,6 +333,7 @@ export default function LiveSession() {
 
   async function handleAbandon() {
     if (!window.confirm('Abandon this session? All logged data will be kept.')) return
+    setSessionError(null)
     try {
       const res = await fetch(`/api/sessions/${id}/abandon`, {
         method: 'POST',
@@ -285,8 +342,12 @@ export default function LiveSession() {
       const d = await res.json()
       if (d.status === 'ok') {
         navigate(`/workout/${d.workout_id}`)
+      } else {
+        setSessionError(d.message || 'Failed to abandon session.')
       }
-    } catch {}
+    } catch {
+      setSessionError('Network error.')
+    }
   }
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -340,6 +401,12 @@ export default function LiveSession() {
             </div>
           </div>
         </div>
+
+        {sessionError && (
+          <p className="data-monospace" style={{ color: 'var(--danger)', fontSize: 12, marginTop: -8 }}>
+            {sessionError}
+          </p>
+        )}
 
         {/* ── Record cards ── */}
         {sortedRecords.map(rec => {

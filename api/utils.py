@@ -58,6 +58,40 @@ def get_database_url():
     # Public wrapper to retrieve the resolved database URL
     return _get_database_url()
 
+_CONSTRAINT_MESSAGES = {
+    # workout_exercise
+    "chk_we_sort_order":    "Exercise order must be greater than zero.",
+    "chk_we_target_sets":   "Number of target sets must be greater than zero.",
+    "chk_we_target_reps":   "Number of target reps must be greater than zero.",
+    "chk_we_target_weight": "Target weight cannot be negative.",
+    # set_log
+    "chk_sl_number": "Set number must be greater than zero.",
+    "chk_sl_weight": "Weight cannot be negative.",
+    "chk_sl_reps":   "Number of reps must be greater than zero.",
+    "chk_sl_rpe":    "RPE must be between 0 and 10.",
+    # record_log
+    "chk_rl_number": "Record number must be greater than zero.",
+    # workout_session
+    "chk_ws_difficulty_rating":   "Difficulty rating must be between 0 and 10.",
+    "chk_ws_enjoyment_rating":    "Enjoyment rating must be between 0 and 10.",
+    "chk_ws_energy_level_rating": "Energy level rating must be between 0 and 10.",
+}
+
+
+def db_error_message(exc):
+    """Return a user-friendly error message from a psycopg exception.
+    Looks up named CHECK constraint violations in a human-readable mapping;
+    falls back to message_primary for RAISE EXCEPTION and other errors.
+    Never exposes message_detail to avoid leaking internal row data."""
+    diag = getattr(exc, 'diag', None)
+    if diag is None:
+        return str(exc).split('\n')[0]
+    constraint = getattr(diag, 'constraint_name', None)
+    if constraint and constraint in _CONSTRAINT_MESSAGES:
+        return _CONSTRAINT_MESSAGES[constraint]
+    return getattr(diag, 'message_primary', None) or str(exc).split('\n')[0]
+
+
 def postgres_error_hint(exc):
     # Maps common Postgres connection exceptions to user-friendly hint messages
     message = str(exc)

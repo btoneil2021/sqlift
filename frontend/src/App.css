@@ -184,9 +184,6 @@
 .field-input::placeholder { color: var(--text-muted); opacity: 0.5; }
 .field-select option { background: var(--surface-2); }
 
-/* Small button variant */
-.btn--sm { font-size: 11px !important; padding: 4px 10px !important; }
-
 /* Exercise row — shared across ViewWorkout and exercise picker */
 .exercise-row {
   display: flex;
@@ -333,6 +330,19 @@
 
 /* Textarea */
 .field-textarea {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 6px 10px;
+  outline: none;
+  width: 120px;
+}
+.field-textarea:focus { border-color: var(--accent); }
+.field-textarea::placeholder { color: var(--text-muted); opacity: 0.5; }
+
 /* ── Profile Page ── */
 .profile-layout {
   display: flex;
@@ -433,13 +443,6 @@
   width: 100%;
   resize: vertical;
   min-height: 80px;
-}
-.field-textarea:focus { border-color: var(--accent); }
-.field-textarea::placeholder { color: var(--text-muted); opacity: 0.5; }
-  padding: 6px 10px;
-  outline: none;
-  border-radius: 2px;
-  width: 120px;
 }
 
 .profile-name-input:focus {
