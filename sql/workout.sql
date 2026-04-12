@@ -57,21 +57,6 @@ AS $$
     LIMIT 1;
 $$;
 
--- Return the available workout tags in alphabetical order.
-CREATE OR REPLACE FUNCTION fn_list_workout_tags()
-RETURNS TABLE (
-    tag_name TEXT,
-    color_code TEXT
-)
-LANGUAGE sql
-AS $$
-    SELECT 
-        wt.name AS tag_name, 
-        wt.color_code AS color_code
-    FROM workout_tag wt
-    ORDER BY wt.name ASC
-$$;
-
 -- Return the matching exercise library rows for the provided search text.
 CREATE OR REPLACE FUNCTION fn_search_exercise_library(
     p_search_text TEXT DEFAULT NULL
@@ -1157,16 +1142,6 @@ BEGIN
         ws.enjoyment_rating,
         ws.energy_level_rating;
 END;
-$$;
-
-CREATE OR REPLACE FUNCTION fn_fetch_session_state(
-    p_user_id BIGINT,
-    p_workout_session_id BIGINT
-)
-RETURNS JSONB
-LANGUAGE sql
-AS $$
-    SELECT fn_get_tracking_payload(p_user_id, p_workout_session_id)
 $$;
 
 CREATE OR REPLACE FUNCTION fn_list_workout_sessions(
