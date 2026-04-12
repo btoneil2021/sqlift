@@ -8,12 +8,16 @@ function fmtVolume(kg) {
 }
 
 export default function Leaderboard() {
+  const [scope, setScope]          = useState('friends') // 'friends' | 'global'
   const [leaderboard, setLeaderboard] = useState([])
-  const [loading, setLoading]         = useState(true)
-  const [error, setError]             = useState(null)
+  const [loading, setLoading]      = useState(true)
+  const [error, setError]          = useState(null)
 
   useEffect(() => {
-    fetch('/api/leaderboard', { credentials: 'include' })
+    setLoading(true)
+    setError(null)
+    const url = scope === 'global' ? '/api/leaderboard/global' : '/api/leaderboard'
+    fetch(url, { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
         if (data.status === 'ok') setLeaderboard(data.leaderboard || [])
@@ -21,13 +25,31 @@ export default function Leaderboard() {
       })
       .catch(() => setError('Network error.'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [scope])
 
   const me  = leaderboard.find(u => u.is_me)
   const top = leaderboard[0]
 
   return (
     <Layout title="LEADERBOARD">
+
+      {/* Toggle */}
+      <div style={{ display: 'flex', gap: 0, marginBottom: 24, alignSelf: 'flex-start' }}>
+        <button
+          className={`btn btn--sm ${scope === 'friends' ? 'btn--primary' : 'btn--secondary'}`}
+          style={{ margin: 0, borderRadius: '4px 0 0 4px' }}
+          onClick={() => setScope('friends')}
+        >
+          FRIENDS
+        </button>
+        <button
+          className={`btn btn--sm ${scope === 'global' ? 'btn--primary' : 'btn--secondary'}`}
+          style={{ margin: 0, borderRadius: '0 4px 4px 0', borderLeft: 'none' }}
+          onClick={() => setScope('global')}
+        >
+          GLOBAL
+        </button>
+      </div>
 
       {loading && (
         <div className="dashboard-card">
