@@ -4,6 +4,7 @@ import os
 from importlib.machinery import SourceFileLoader
 from importlib.util import module_from_spec, spec_from_loader
 from pathlib import Path
+from urllib.parse import urljoin
 
 import psycopg
 from dotenv import load_dotenv
@@ -46,6 +47,45 @@ def build_bucket_id_map():
     return {name: idx + 1 for idx, name in enumerate(CANONICAL_BUCKETS)}
 
 
+def _extract_primary_translation(item):
+    translations = item.get("translations") or []
+    for translation in translations:
+        if translation.get("language") == 2:
+            return translation
+    return translations[0] if translations else None
+
+
+def _extract_translations_from_exerciseinfo(exerciseinfo):
+    translations = []
+    for item in exerciseinfo:
+        exercise_id = item.get("id")
+        if exercise_id is None:
+            continue
+        translation = _extract_primary_translation(item)
+        if translation:
+            translations.append(translation)
+    return translations
+
+
+def _extract_media_from_exerciseinfo(exerciseinfo):
+    media = []
+    for item in exerciseinfo:
+        exercise_id = item.get("id")
+        images = item.get("images") or []
+        for image in images:
+            url = image.get("image")
+            if not url:
+                continue
+            media.append(
+                {
+                    "exercise": exercise_id,
+                    "url": urljoin("https://wger.de", url),
+                    "type": image.get("style"),
+                }
+            )
+    return media
+
+
 def _clean_env_value(value):
     if value is None:
         return None
@@ -84,12 +124,6 @@ def fetch_dataset(session=None, limit=None, max_pages=None):
         params=params or None,
         max_pages=max_pages,
     )
-    translations = fetch.fetch_paginated(
-        session,
-        f"{fetch.WGER_BASE_URL}/exercise-translation/",
-        params={"language": 2},
-        max_pages=max_pages,
-    )
     muscles = fetch.fetch_paginated(
         session,
         f"{fetch.WGER_BASE_URL}/muscle/",
@@ -102,12 +136,15 @@ def fetch_dataset(session=None, limit=None, max_pages=None):
         params=None,
         max_pages=max_pages,
     )
+    translations = _extract_translations_from_exerciseinfo(exerciseinfo)
+    media = _extract_media_from_exerciseinfo(exerciseinfo)
 
     return {
         "exerciseinfo": exerciseinfo,
         "translations": translations,
         "muscles": muscles,
         "equipment": equipment,
+        "media": media,
     }
 
 
@@ -146,6 +183,7 @@ def _build_summary(dataset, bucket_id_map=None):
     muscles = dataset.get("muscles", [])
     exerciseinfo = dataset.get("exerciseinfo", [])
     translations = dataset.get("translations", [])
+    media = dataset.get("media", [])
 
     mapping_module = _get_mapping_module()
     normalize = mapping_module.normalize_muscle_group
@@ -157,6 +195,7 @@ def _build_summary(dataset, bucket_id_map=None):
         "skipped_missing_id": [],
         "skipped_missing_muscle": [],
         "skipped_missing_equipment": [],
+        "skipped_missing_media": [],
     }
 
     inserted_exercises = set()
@@ -208,6 +247,25 @@ def _build_summary(dataset, bucket_id_map=None):
                     {"exercise_id": exercise_id, "equipment_id": None}
                 )
 
+    for item in media:
+        exercise_id = _related_item_id(item.get("exercise"))
+        url = item.get("image") or item.get("url")
+        if exercise_id is None or url is None:
+            summary["skipped_missing_media"].append(
+                {
+                    "exercise_id": exercise_id,
+                    "url": url,
+                }
+            )
+            continue
+        if exercise_id not in inserted_exercises:
+            summary["skipped_missing_media"].append(
+                {
+                    "exercise_id": exercise_id,
+                    "url": url,
+                }
+            )
+
     return summary
 
 
@@ -217,9 +275,11 @@ def write_dataset(conn, dataset, bucket_id_map=None):
     equipment = dataset.get("equipment", [])
     exerciseinfo = dataset.get("exerciseinfo", [])
     translations = dataset.get("translations", [])
+    media = dataset.get("media", [])
 
     mapping_module = _get_mapping_module()
     normalize = mapping_module.normalize_muscle_group
+    normalize_media_type = mapping_module.normalize_media_type
     translation_map = _build_translation_map(translations)
     muscle_bucket_map = _build_muscle_bucket_map(muscles, bucket_id_map, normalize)
 
@@ -228,6 +288,7 @@ def write_dataset(conn, dataset, bucket_id_map=None):
         "skipped_missing_id": [],
         "skipped_missing_muscle": [],
         "skipped_missing_equipment": [],
+        "skipped_missing_media": [],
     }
 
     with conn.cursor() as cur:
@@ -348,6 +409,35 @@ def write_dataset(conn, dataset, bucket_id_map=None):
                     "ON CONFLICT (exercise_id, equipment_id) DO NOTHING",
                     (exercise_id, equipment_id),
                 )
+
+        for item in media:
+            exercise_id = _related_item_id(item.get("exercise"))
+            url = item.get("image") or item.get("url")
+            media_type = normalize_media_type(url)
+            if exercise_id is None or url is None or media_type is None:
+                summary["skipped_missing_media"].append(
+                    {
+                        "exercise_id": exercise_id,
+                        "url": url,
+                    }
+                )
+                continue
+            if exercise_id not in inserted_exercises:
+                summary["skipped_missing_media"].append(
+                    {
+                        "exercise_id": exercise_id,
+                        "url": url,
+                    }
+                )
+                continue
+            cur.execute(
+                "INSERT INTO sqlift.media "
+                "(url, exercise_id, type) "
+                "VALUES (%s, %s, %s) "
+                "ON CONFLICT (url) DO UPDATE "
+                "SET exercise_id = EXCLUDED.exercise_id, type = EXCLUDED.type",
+                (url, exercise_id, media_type),
+            )
 
     return summary
 

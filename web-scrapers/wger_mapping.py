@@ -1,4 +1,5 @@
 import re
+from urllib.parse import urlparse
 
 
 _BUCKETS = {
@@ -75,3 +76,24 @@ def normalize_muscle_group(raw_name):
             return bucket
 
     return None
+
+
+def normalize_media_type(url):
+    """
+    Normalize a media URL into a simple file-type label for storage.
+
+    Wger exposes exercise media as image URLs, so the file extension is the
+    most reliable discriminator available from the API payload.
+    """
+    if not url:
+        return None
+
+    path = urlparse(str(url)).path
+    if not path:
+        return None
+
+    match = re.search(r"\.([a-z0-9]+)$", path.lower())
+    if not match:
+        return "unknown"
+
+    return match.group(1)
