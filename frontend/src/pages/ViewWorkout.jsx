@@ -225,19 +225,58 @@ export default function ViewWorkout() {
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {exercises.map(ex => (
               <div key={ex.sort_order} className="exercise-row">
-                <span className="exercise-row__num">{String(ex.sort_order).padStart(2, '0')}</span>
-                <span className="exercise-row__name">{ex.exercise_name}</span>
-                <div className="exercise-row__meta">
+
+                {/* Number badge */}
+                <span className="exercise-row__num" style={{ color: 'var(--accent)', fontSize: 13, minWidth: 32, marginRight: 12 }}>
+                  {String(ex.sort_order).padStart(2, '0')}
+                </span>
+
+                {/* Name */}
+                <span className="exercise-row__name" style={{ fontSize: 17 }}>
+                  {ex.exercise_name}
+                </span>
+
+                {/* View exercise button */}
+                <Link
+                  to={`/exercise/${ex.exercise_id}`}
+                  className="btn btn--outline btn--sm"
+                  onClick={e => e.stopPropagation()}
+                  style={{ flexShrink: 0 }}
+                >
+                  VIEW
+                </Link>
+
+                {/* Stat pills */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   {(ex.target_sets || ex.target_reps) && (
-                    <span>
+                    <span style={{
+                      fontFamily: 'var(--font-mono)', fontSize: 11,
+                      background: 'var(--surface-2)', border: '1px solid var(--border)',
+                      padding: '2px 8px', color: 'var(--text)'
+                    }}>
                       {ex.target_sets ?? '—'} × {ex.target_reps ?? '—'} reps
-                      {ex.target_weight ? ` @ ${ex.target_weight} kg` : ''}
+                    </span>
+                  )}
+                  {ex.target_weight != null && (
+                    <span style={{
+                      fontFamily: 'var(--font-mono)', fontSize: 11,
+                      background: 'var(--surface-2)', border: '1px solid var(--border)',
+                      padding: '2px 8px', color: 'var(--accent)'
+                    }}>
+                      {ex.target_weight} kg
                     </span>
                   )}
                   {ex.expected_rest_time && (
-                    <span>rest {fmtRest(ex.expected_rest_time)}</span>
+                    <span style={{
+                      fontFamily: 'var(--font-mono)', fontSize: 11,
+                      background: 'var(--surface-2)', border: '1px solid var(--border)',
+                      padding: '2px 8px', color: 'var(--text-muted)'
+                    }}>
+                      rest {fmtRest(ex.expected_rest_time)}
+                    </span>
                   )}
                 </div>
+
               </div>
             ))}
           </div>

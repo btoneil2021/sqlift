@@ -291,3 +291,4 @@ CREATE TABLE set_log (
   CHECK (reps > 0),
   CHECK (rpe >= 0 AND rpe <= 10)
 );
+
