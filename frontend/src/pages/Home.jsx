@@ -89,7 +89,6 @@ export default function Home() {
         <section className="dashboard-card full-width">
           <div className="flex-header">
             <h2 className="panel-title">SAVED PROGRAMS</h2>
-            <Link to="/exercise/1" className="link-btn text-muted">Exercise Library</Link>
           </div>
 
           {loadingWorkouts && (

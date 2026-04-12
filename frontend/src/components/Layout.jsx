@@ -16,6 +16,7 @@ export default function Layout({ title, children }) {
         <Link to="/home" className="logo"><span className="logo-sql">SQL</span><span className="logo-ift">ift</span></Link>
         <div className="nav-links">
           <Link to="/home" className="nav-link">Home</Link>
+          <Link to="/exercises" className="nav-link">Exercises</Link>
           <Link to="/profile" className="nav-link">Profile</Link>
           <Link to="/stats" className="nav-link">Stats</Link>
           <Link to="/leaderboard" className="nav-link">Leaderboard</Link>

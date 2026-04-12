@@ -208,6 +208,16 @@ export default function ViewWorkout() {
                   {ex.exercise_name}
                 </span>
 
+                {/* View exercise button */}
+                <Link
+                  to={`/exercise/${ex.exercise_id}`}
+                  className="btn btn--outline btn--sm"
+                  onClick={e => e.stopPropagation()}
+                  style={{ flexShrink: 0 }}
+                >
+                  VIEW
+                </Link>
+
                 {/* Stat pills */}
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   {(ex.target_sets || ex.target_reps) && (
@@ -219,7 +229,7 @@ export default function ViewWorkout() {
                       {ex.target_sets ?? '—'} × {ex.target_reps ?? '—'} reps
                     </span>
                   )}
-                  {ex.target_weight && (
+                  {ex.target_weight != null && (
                     <span style={{
                       fontFamily: 'var(--font-mono)', fontSize: 11,
                       background: 'var(--surface-2)', border: '1px solid var(--border)',

@@ -8,6 +8,7 @@ import ViewWorkout from './pages/ViewWorkout'
 import LiveSession from './pages/LiveSession'
 import Profile from './pages/Profile'
 import ViewExercise from './pages/ViewExercise'
+import ViewExerciseLibrary from './pages/ViewExerciseLibrary'
 import Stats from './pages/Stats'
 import Leaderboard from './pages/Leaderboard'
 
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/workout/:id" element={<ProtectedRoute><ViewWorkout /></ProtectedRoute>} />
         <Route path="/session/:id" element={<ProtectedRoute><LiveSession /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/exercises" element={<ProtectedRoute><ViewExerciseLibrary /></ProtectedRoute>} />
         <Route path="/exercise/:id" element={<ProtectedRoute><ViewExercise /></ProtectedRoute>} />
         <Route path="/stats" element={<ProtectedRoute><Stats /></ProtectedRoute>} />
         <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />

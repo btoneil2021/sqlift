@@ -47,6 +47,39 @@ def search_exercises(conn):
     return jsonify(status="ok", results=results)
 
 
+# ── Exercise library ─────────────────────────────────────────────────────────
+
+@workouts_bp.route("/api/exercises/library")
+@api_route()
+def get_exercise_library(conn):
+    user_id, err = _require_user()
+    if err:
+        return err
+    with conn.cursor() as cur:
+        cur.execute(f"SELECT {DB_SCHEMA}.fn_get_exercise_library() AS exercises")
+        row = cur.fetchone()
+    return jsonify(status="ok", exercises=row[0] if row else [])
+
+
+# ── Exercise detail ───────────────────────────────────────────────────────────
+
+@workouts_bp.route("/api/exercises/<int:exercise_id>")
+@api_route()
+def get_exercise(conn, exercise_id):
+    user_id, err = _require_user()
+    if err:
+        return err
+    with conn.cursor() as cur:
+        cur.execute(
+            f"SELECT {DB_SCHEMA}.fn_get_exercise_by_id(%s::bigint) AS exercise",
+            (exercise_id,)
+        )
+        row = cur.fetchone()
+    if not row or row[0] is None:
+        return jsonify(status="error", message="Exercise not found."), 404
+    return jsonify(status="ok", exercise=row[0])
+
+
 # ── Workout list ─────────────────────────────────────────────────────────────
 
 @workouts_bp.route("/api/workouts/list")
