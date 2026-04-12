@@ -1146,6 +1146,37 @@ AS $$
     SELECT fn_get_tracking_payload(p_user_id, p_workout_session_id)
 $$;
 
+CREATE OR REPLACE FUNCTION fn_list_workout_sessions(
+    p_user_id BIGINT,
+    p_workout_id BIGINT
+)
+RETURNS TABLE (
+    workout_session_id BIGINT,
+    start_date_time TIMESTAMP,
+    completion_status workout_session_status,
+    notes TEXT,
+    exercise_count INT
+)
+LANGUAGE sql
+AS $$
+    SELECT
+        ws.workout_session_id,
+        ws.start_date_time,
+        ws.completion_status,
+        ws.notes,
+        COUNT(rl.record_log_id) AS exercise_count
+    FROM workout_session ws
+    INNER JOIN workout w 
+        ON w.workout_id = ws.workout_id
+    LEFT JOIN record_log rl 
+        ON rl.workout_session_id = ws.workout_session_id
+    WHERE w.user_id = p_user_id
+        AND ws.workout_id = p_workout_id
+    GROUP BY ws.workout_session_id, ws.start_date_time, 
+        ws.completion_status, ws.notes
+    ORDER BY ws.start_date_time DESC;
+$$;
+
 CREATE OR REPLACE FUNCTION trg_block_finalized_session_edits()
 RETURNS TRIGGER
 LANGUAGE plpgsql

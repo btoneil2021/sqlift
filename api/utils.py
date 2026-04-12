@@ -72,9 +72,9 @@ _CONSTRAINT_MESSAGES = {
     # record_log
     "chk_rl_number": "Record number must be greater than zero.",
     # workout_session
-    "chk_ws_difficulty_rating":   "Difficulty rating must be between 0 and 10.",
-    "chk_ws_enjoyment_rating":    "Enjoyment rating must be between 0 and 10.",
-    "chk_ws_energy_level_rating": "Energy level rating must be between 0 and 10.",
+    "chk_ws_difficulty": "Difficulty rating must be between 0 and 10.",
+    "chk_ws_enjoyment":  "Enjoyment rating must be between 0 and 10.",
+    "chk_ws_energy":     "Energy level must be between 0 and 10.",
 }
 
 

@@ -168,6 +168,21 @@ def start_session(conn, workout_id):
     return jsonify(status="ok", workout_session_id=workout_session_id), 201
 
 
+@workouts_bp.route("/api/workouts/<int:workout_id>/sessions")
+@api_route()
+def list_sessions(conn, workout_id):
+    user_id, err = _require_user()
+    if err:
+        return err
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            f"SELECT * FROM {DB_SCHEMA}.fn_list_workout_sessions(%s, %s)",
+            (user_id, workout_id)
+        )
+        rows = cur.fetchall()
+    return jsonify(status="ok", sessions=[dict(r) for r in rows])
+
+
 @workouts_bp.route("/api/workouts/<int:workout_id>/sessions/in-progress")
 @api_route()
 def get_in_progress_session(conn, workout_id):

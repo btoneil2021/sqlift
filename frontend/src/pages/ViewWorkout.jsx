@@ -12,6 +12,18 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+function fmtSessionLabel(iso) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  const today = new Date()
+  const isToday = d.getFullYear() === today.getFullYear() &&
+                  d.getMonth()    === today.getMonth()    &&
+                  d.getDate()     === today.getDate()
+  const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  if (isToday) return `Today at ${time}`
+  return `${fmtDate(iso)} at ${time}`
+}
+
 function fmtRest(interval) {
   if (!interval) return null
   // Postgres INTERVAL comes back as e.g. "0:01:30" or "00:01:30"
@@ -27,10 +39,12 @@ export default function ViewWorkout() {
   const { id } = useParams()
   const navigate = useNavigate()
 
-  const [workout, setWorkout]       = useState(null)
-  const [inProgress, setInProgress] = useState(null)
-  const [loading, setLoading]       = useState(true)
-  const [error, setError]           = useState(null)
+  const [workout, setWorkout]             = useState(null)
+  const [inProgress, setInProgress]       = useState(null)
+  const [sessions, setSessions]           = useState([])
+  const [showAllSessions, setShowAllSessions] = useState(false)
+  const [loading, setLoading]             = useState(true)
+  const [error, setError]                 = useState(null)
   const [deleting, setDeleting]     = useState(false)
   const [deleteError, setDeleteError] = useState(null)
   const [starting, setStarting]     = useState(false)
@@ -43,13 +57,15 @@ export default function ViewWorkout() {
     Promise.all([
       fetch(`/api/workouts/${id}`, { credentials: 'include' }).then(r => r.json()),
       fetch(`/api/workouts/${id}/sessions/in-progress`, { credentials: 'include' }).then(r => r.json()),
+      fetch(`/api/workouts/${id}/sessions`, { credentials: 'include' }).then(r => r.json()),
     ])
-      .then(([workoutData, ipData]) => {
+      .then(([workoutData, ipData, sessionsData]) => {
         if (workoutData.status !== 'ok') {
           setError(workoutData.message || 'Workout not found.')
         } else {
           setWorkout(workoutData.workout)
           if (ipData.status === 'ok') setInProgress(ipData.session)
+          if (sessionsData.status === 'ok') setSessions(sessionsData.sessions)
         }
       })
       .catch(() => setError('Network error.'))
@@ -286,6 +302,52 @@ export default function ViewWorkout() {
           </>
         )}
       </div>
+
+      {/* ── Session log ── */}
+      {sessions.length > 0 && (() => {
+        const displayed = showAllSessions ? sessions : sessions.slice(0, 10)
+        return (
+          <div className="dashboard-card" style={{ marginTop: 24 }}>
+            <div className="panel-title">SESSION LOG</div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {displayed.map((s, i) => {
+                const isInProgress = s.completion_status === 'In Progress'
+                const isAbandoned  = !isInProgress && s.notes === 'Abandoned'
+                return (
+                  <Link
+                    key={s.workout_session_id}
+                    to={`/session/${s.workout_session_id}`}
+                    className="exercise-row"
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                  >
+                    <span className="exercise-row__num">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="exercise-row__name" style={{ fontSize: 14 }}>
+                      {fmtSessionLabel(s.start_date_time)}
+                    </span>
+                    <div className="exercise-row__meta" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span className="data-monospace text-muted" style={{ fontSize: 12 }}>
+                        {s.exercise_count} {s.exercise_count === 1 ? 'exercise' : 'exercises'}
+                      </span>
+                      {isInProgress && <span className="pill pill--warning">IN PROGRESS</span>}
+                      {isAbandoned   && <span className="pill pill--danger">ABANDONED</span>}
+                      {!isInProgress && !isAbandoned && <span className="pill pill--success">COMPLETED</span>}
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+            {sessions.length > 10 && (
+              <button
+                className="btn btn--ghost btn--sm"
+                style={{ margin: '8px 0 0', color: 'var(--text-muted)' }}
+                onClick={() => setShowAllSessions(v => !v)}
+              >
+                {showAllSessions ? '— SHOW LESS' : `+ SHOW ALL ${sessions.length}`}
+              </button>
+            )}
+          </div>
+        )
+      })()}
 
     </Layout>
   )
