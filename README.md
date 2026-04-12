@@ -12,25 +12,32 @@ Use the direct Postgres connection string from Supabase, for example:
 
 `postgresql://postgres:[YOUR-PASSWORD]@db.llogioyvqexdoyvqqtti.supabase.co:5432/postgres`
 
-Replace `[YOUR-PASSWORD]` with the actual database password. The backend exposes a database-backed health route at `/api/supabase/health`. It queries the `sqlift` schema and returns a few sample rows from the `user` table so you can confirm the connection is working.
+Replace `[YOUR-PASSWORD]` with the actual database password.
 
 ## Wger Import
 
 The scraper and import scripts live in the `web-scrapers/` folder.
 
-Run a preview first:
+Run a preview first (no database connection opened):
 
 ```bash
-python3 "web scrapers/import_wger.py" --dry-run --limit 50
+python3 web-scrapers/import_wger.py --dry-run --limit 50
 ```
 
 Run the real import after `DATABASE_URL` is set:
 
 ```bash
-python3 "web scrapers/import_wger.py" --limit 50
+python3 web-scrapers/import_wger.py --limit 50
 ```
 
-The `--dry-run` flag fetches the wger data and prints a summary without opening a database connection or writing rows.
+Available flags:
+
+| Flag | Description |
+|------|-------------|
+| `--dry-run` | Fetch data and print a summary without writing to the database |
+| `--limit N` | Limit the number of exercises fetched from the wger API |
+| `--max-pages N` | Limit the number of pages fetched from each wger endpoint |
+| `--database-url URL` | Override `DATABASE_URL` for a one-off import run |
 
 ## Deployment
 
@@ -40,7 +47,7 @@ When anyone with write access pushes to `main`, the workflow in `.github/workflo
 
 1. Pull the Vercel project settings and production environment.
 2. Deploy the repository root with `vercel deploy --prod`.
-3. Verify that `https://cs-5200-project.vercel.app/api/hello` returns the expected JSON.
+3. Run a smoke test against the live backend at `https://cs-5200-project.vercel.app`.
 
 Required GitHub secrets:
 
