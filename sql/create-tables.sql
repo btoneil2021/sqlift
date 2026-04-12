@@ -73,7 +73,7 @@ CREATE TABLE measurement_log (
 
 CREATE TABLE achievement (
   achievement_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  name TEXT NOT NULL,
+  name TEXT NOT NULL UNIQUE,
   description TEXT,
   achievement_img_url TEXT
 );

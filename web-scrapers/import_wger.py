@@ -154,6 +154,8 @@ def _build_translation_map(translations):
         exercise_id = translation.get("exercise")
         if exercise_id is None or exercise_id in translation_map:
             continue
+        if translation.get("language") != 2:
+            continue
         translation_map[exercise_id] = translation
     return translation_map
 

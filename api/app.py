@@ -29,12 +29,14 @@ from api.workouts import workouts_bp
 from api.sessions import sessions_bp
 from api.profile import profile_bp
 from api.stats import stats_bp
+from api.achievements import achievements_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(workouts_bp)
 app.register_blueprint(sessions_bp)
 app.register_blueprint(profile_bp)
 app.register_blueprint(stats_bp)
+app.register_blueprint(achievements_bp)
 
 @app.errorhandler(404)
 def page_not_found(e):

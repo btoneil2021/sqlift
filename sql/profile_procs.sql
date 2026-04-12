@@ -47,16 +47,44 @@ RETURNS TABLE (
     profile_pic_url TEXT
 ) AS $$
 BEGIN
-    UPDATE sqlift."user"
-    SET username = COALESCE(p_username, username),
-        first_name = COALESCE(p_first_name, first_name),
-        last_name = COALESCE(p_last_name, last_name),
-        height = COALESCE(p_height, height),
-        sex = COALESCE(p_sex, sex),
-        email = COALESCE(p_email, email),
-        phone_num = COALESCE(p_phone_num, phone_num),
-        profile_pic_url = COALESCE(p_profile_pic_url, profile_pic_url)
-    WHERE sqlift."user".user_id = p_user_id;
+    IF p_email IS NOT NULL AND EXISTS (
+        SELECT 1 FROM sqlift."user" u
+        WHERE u.email = p_email AND u.user_id = p_user_id
+    ) THEN
+        RAISE EXCEPTION 'email is already yours';
+    END IF;
+
+    IF p_email IS NOT NULL AND EXISTS (
+        SELECT 1 FROM sqlift."user" u
+        WHERE u.email = p_email AND u.user_id <> p_user_id
+    ) THEN
+        RAISE EXCEPTION 'email already in use';
+    END IF;
+
+    IF p_phone_num IS NOT NULL AND p_phone_num <> '' AND EXISTS (
+        SELECT 1 FROM sqlift."user" u
+        WHERE u.phone_num = p_phone_num AND u.user_id = p_user_id
+    ) THEN
+        RAISE EXCEPTION 'phone number is already yours';
+    END IF;
+
+    IF p_phone_num IS NOT NULL AND p_phone_num <> '' AND EXISTS (
+        SELECT 1 FROM sqlift."user" u
+        WHERE u.phone_num = p_phone_num AND u.user_id <> p_user_id
+    ) THEN
+        RAISE EXCEPTION 'phone number already in use';
+    END IF;
+
+    UPDATE sqlift."user" u
+    SET username        = COALESCE(p_username,        u.username),
+        first_name      = COALESCE(p_first_name,      u.first_name),
+        last_name       = COALESCE(p_last_name,       u.last_name),
+        height          = COALESCE(p_height,          u.height),
+        sex             = COALESCE(p_sex,             u.sex),
+        email           = COALESCE(p_email,           u.email),
+        phone_num       = COALESCE(p_phone_num,       u.phone_num),
+        profile_pic_url = COALESCE(p_profile_pic_url, u.profile_pic_url)
+    WHERE u.user_id = p_user_id;
 
     RETURN QUERY
     SELECT u.user_id, u.username, u.first_name, u.last_name,
