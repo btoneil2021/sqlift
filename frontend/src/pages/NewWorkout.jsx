@@ -265,7 +265,6 @@ export default function NewWorkout() {
                   <div className="exercise-row__actions">
                     <button
                       className="btn btn--outline btn--sm"
-                      style={{ margin: 0 }}
                       onClick={() => addExercise(ex)}
                     >
                       + ADD
@@ -292,11 +291,10 @@ export default function NewWorkout() {
                       key={t.name}
                       className={`btn btn--sm ${active ? '' : 'btn--outline'}`}
                       style={active ? {
-                        margin: 0,
                         backgroundColor: `#${t.color_code}`,
                         borderColor: `#${t.color_code}`,
                         color: '#fff',
-                      } : { margin: 0 }}
+                      } : undefined}
                       onClick={() => toggleTag(t.name)}
                     >
                       {t.name}
@@ -337,21 +335,19 @@ export default function NewWorkout() {
                       <div style={{ display: 'flex', gap: 4 }}>
                         <button
                           className="btn btn--ghost btn--sm"
-                          style={{ margin: 0, padding: '2px 6px' }}
                           onClick={() => moveExercise(ex._key, 'up')}
                           disabled={idx === 0}
                           title="Move up"
                         >↑</button>
                         <button
                           className="btn btn--ghost btn--sm"
-                          style={{ margin: 0, padding: '2px 6px' }}
                           onClick={() => moveExercise(ex._key, 'down')}
                           disabled={idx === sortedExercises.length - 1}
                           title="Move down"
                         >↓</button>
                         <button
                           className="btn btn--ghost btn--sm"
-                          style={{ margin: 0, padding: '2px 6px', color: 'var(--danger)' }}
+                          style={{ color: 'var(--danger)' }}
                           onClick={() => removeExercise(ex._key)}
                           title="Remove"
                         >✕</button>
@@ -423,8 +419,7 @@ export default function NewWorkout() {
 
           {/* Save button */}
           <button
-            className="btn btn--accent btn--full"
-            style={{ margin: 0, fontSize: 15, padding: '12px 24px', fontFamily: 'var(--font-display)', letterSpacing: '0.5px' }}
+            className="btn btn--accent btn--cta btn--full"
             onClick={handleSave}
             disabled={saving}
           >

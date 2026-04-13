@@ -334,14 +334,14 @@ export default function Profile() {
             {!editing
               ? <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   {pwSuccess && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--success)' }}>PASSWORD UPDATED</span>}
-                  <button className="btn btn--ghost" style={{ fontSize: 11, padding: '4px 12px', color: 'var(--text-muted)' }} onClick={() => { setPwOpen(true); setPwSuccess(false) }}>PASSWORD</button>
-                  <button className="btn btn--outline" style={{ fontSize: 11, padding: '4px 12px' }} onClick={startEdit}>EDIT</button>
+                  <button className="btn btn--ghost btn--sm" onClick={() => { setPwOpen(true); setPwSuccess(false) }}>PASSWORD</button>
+                  <button className="btn btn--outline btn--sm" onClick={startEdit}>EDIT</button>
                 </div>
               : <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn btn--accent" style={{ fontSize: 11, padding: '4px 12px' }} onClick={saveEdit} disabled={saving}>
+                  <button className="btn btn--accent btn--sm" onClick={saveEdit} disabled={saving}>
                     {saving ? 'SAVING…' : 'SAVE'}
                   </button>
-                  <button className="btn btn--outline" style={{ fontSize: 11, padding: '4px 12px' }} onClick={cancelEdit} disabled={saving}>CANCEL</button>
+                  <button className="btn btn--outline btn--sm" onClick={cancelEdit} disabled={saving}>CANCEL</button>
                 </div>
             }
           </div>

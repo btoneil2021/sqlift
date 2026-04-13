@@ -28,21 +28,35 @@
 }
 
 .btn {
-  font-family: var(--font-body);
-  font-size: 14px;
+  font-family: var(--font-mono);
+  font-size: 13px;
   font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
   padding: 8px 16px;
-  border-radius: 4px;
-  border: 1px solid transparent;
+  border-radius: 0;
+  border: 2px solid transparent;
   cursor: pointer;
-  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.btn--primary { background: var(--accent); color: #000; }
-.btn--primary:hover { background: var(--accent-dim); }
+.btn--primary { background: var(--accent); color: #000; font-weight: 700; border-color: var(--accent); }
+.btn--primary:hover { background: var(--accent-dim); border-color: var(--accent-dim); }
 .btn--secondary { background: transparent; color: var(--accent); border-color: var(--accent); }
-.btn--ghost { background: transparent; color: var(--text-muted); }
-.btn--ghost:hover { color: var(--text); }
+.btn--secondary:hover { background: var(--accent-glow); }
+.btn--ghost { background: transparent; color: var(--text-muted); border-color: transparent; }
+.btn--ghost:hover { color: var(--text); background: var(--surface-2); }
+.btn--large { font-size: 15px; padding: 14px 28px; font-weight: 700; }
+.btn--cta {
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px 24px;
+}
 .btn--full { width: 100%; margin: 0; }
+.nav .btn + .btn { margin-left: 8px; }
 
 .hero {
   display: flex;
@@ -490,10 +504,7 @@
 /* Small button variant */
 .btn--sm {
   font-size: 13px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 8px 16px;
+  padding: 5px 12px;
 }
 
 /* Fields grid */
