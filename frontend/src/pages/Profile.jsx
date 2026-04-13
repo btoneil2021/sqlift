@@ -123,7 +123,7 @@ export default function Profile() {
       .then(r => r.json())
       .then(data => { if (data.status === 'ok') setFriends(data.friends) })
       .finally(() => setFriendsLoading(false))
-    fetch(`/api/profile/${user.user_id}/achievements`, { credentials: 'include' })
+    fetch(`/api/profile/${user.user_id}/achievements?tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`, { credentials: 'include' })
       .then(r => r.json())
       .then(data => { if (data.status === 'ok') setAchievements(data.achievements) })
   }, [user])

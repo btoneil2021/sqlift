@@ -1,5 +1,5 @@
 import datetime
-from flask import Blueprint, jsonify, session
+from flask import Blueprint, jsonify, request, session
 from psycopg.rows import dict_row
 
 from api.utils import api_route
@@ -13,10 +13,12 @@ def get_achievements(conn, user_id):
     if session.get("user_id") != user_id:
         return jsonify(status="error", message="Not authorized."), 403
 
+    tz = request.args.get("tz", "UTC")
+
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            "SELECT * FROM sqlift.evaluate_and_get_achievements(%s)",
-            (user_id,)
+            "SELECT * FROM sqlift.evaluate_and_get_achievements(%s, %s)",
+            (user_id, tz)
         )
         rows = cur.fetchall()
     conn.commit()   # required — the SQL function performs INSERTs to award achievements

@@ -32,7 +32,7 @@ ON CONFLICT (name) DO NOTHING;
 
 
 -- Evaluates all achievement conditions for p_user_id, awards any newly earned ones
-CREATE OR REPLACE FUNCTION evaluate_and_get_achievements(p_user_id BIGINT)
+CREATE OR REPLACE FUNCTION evaluate_and_get_achievements(p_user_id BIGINT, p_timezone TEXT DEFAULT 'UTC')
 RETURNS TABLE (
     achievement_id      BIGINT,
     name                TEXT,
@@ -90,24 +90,24 @@ BEGIN
         ) sub
     ) INTO v_habit_formed;
 
-    -- Any completed session starting before 07:00
+    -- Any completed session starting before 07:00 (in user's local timezone)
     SELECT EXISTS (
         SELECT 1
         FROM sqlift.workout_session ws
         JOIN sqlift.workout w ON w.workout_id = ws.workout_id
         WHERE w.user_id = p_user_id
           AND ws.completion_status = 'Completed'
-          AND EXTRACT(HOUR FROM ws.start_date_time) < 7
+          AND EXTRACT(HOUR FROM (ws.start_date_time AT TIME ZONE 'UTC' AT TIME ZONE p_timezone)) < 7
     ) INTO v_early_bird;
 
-    -- Any completed session starting at or after 22:00
+    -- Any completed session starting at or after 22:00 (in user's local timezone)
     SELECT EXISTS (
         SELECT 1
         FROM sqlift.workout_session ws
         JOIN sqlift.workout w ON w.workout_id = ws.workout_id
         WHERE w.user_id = p_user_id
           AND ws.completion_status = 'Completed'
-          AND EXTRACT(HOUR FROM ws.start_date_time) >= 22
+          AND EXTRACT(HOUR FROM (ws.start_date_time AT TIME ZONE 'UTC' AT TIME ZONE p_timezone)) >= 22
     ) INTO v_night_owl;
 
     -- ── Performance ───────────────────────────────────────────────────────────
