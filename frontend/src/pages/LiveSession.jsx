@@ -4,14 +4,20 @@ import Layout from '../components/Layout'
 
 const SET_TYPES = ['Working', 'Warm-up', 'Drop']
 
+function asUTC(iso) {
+  if (!iso) return null
+  const s = String(iso).replace(' ', 'T')
+  return s.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(s) ? s : s + 'Z'
+}
+
 function fmtTime(iso) {
   if (!iso) return '—'
-  return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  return new Date(asUTC(iso)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 }
 
 function fmtDate(iso) {
   if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return new Date(asUTC(iso)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function emptySetForm() {

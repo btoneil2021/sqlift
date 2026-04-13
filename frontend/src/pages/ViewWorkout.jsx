@@ -7,14 +7,20 @@ function fmt(val, fallback = '—') {
   return val
 }
 
+function asUTC(iso) {
+  if (!iso) return null
+  const s = String(iso).replace(' ', 'T')
+  return s.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(s) ? s : s + 'Z'
+}
+
 function fmtDate(iso) {
   if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return new Date(asUTC(iso)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function fmtSessionLabel(iso) {
   if (!iso) return '—'
-  const d = new Date(iso)
+  const d = new Date(asUTC(iso))
   const today = new Date()
   const isToday = d.getFullYear() === today.getFullYear() &&
                   d.getMonth()    === today.getMonth()    &&
@@ -171,8 +177,7 @@ export default function ViewWorkout() {
         {/* Action row */}
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <button
-            className="btn btn--accent"
-            style={{ fontSize: 15, padding: '10px 20px', fontFamily: 'var(--font-display)', letterSpacing: '0.5px' }}
+            className="btn btn--accent btn--cta"
             onClick={handleStartSession}
             disabled={starting}
           >

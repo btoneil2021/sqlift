@@ -2,6 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import Layout from '../components/Layout'
 import { useAuth } from '../context/AuthContext'
 
+function asUTC(iso) {
+  if (!iso) return null
+  return iso.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(iso) ? iso : iso + 'Z'
+}
+
 const W = 240, H = 100, PAD = { top: 10, right: 10, bottom: 24, left: 36 }
 const INNER_W = W - PAD.left - PAD.right
 const INNER_H = H - PAD.top - PAD.bottom
@@ -308,13 +313,13 @@ const RANGES = [
 function filterByRange(measurements, days) {
   if (days === Infinity) return measurements
   const cutoff = Date.now() - days * 86400 * 1000
-  return measurements.filter(m => new Date(m.date_time).getTime() >= cutoff)
+  return measurements.filter(m => new Date(asUTC(m.date_time)).getTime() >= cutoff)
 }
 
 function buildSeriesData(measurements, fieldKey) {
   return measurements
     .filter(m => m[fieldKey] != null)
-    .map(m => ({ ts: new Date(m.date_time).getTime(), value: Number(m[fieldKey]) }))
+    .map(m => ({ ts: new Date(asUTC(m.date_time)).getTime(), value: Number(m[fieldKey]) }))
     .sort((a, b) => a.ts - b.ts)
 }
 
@@ -366,7 +371,8 @@ function WorkoutCalendar({ sessions, muscleVolumeByDate }) {
 
   const sessionMap = {}
   for (const s of sessions) {
-    const dateKey = s.start_date_time.slice(0, 10)
+    const d = new Date(asUTC(s.start_date_time))
+    const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     if (!sessionMap[dateKey]) sessionMap[dateKey] = []
     sessionMap[dateKey].push(s)
   }
@@ -575,8 +581,8 @@ function WorkoutCalendar({ sessions, muscleVolumeByDate }) {
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     {s.start_date_time && (
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
-                        {new Date(s.start_date_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                        {s.end_date_time && ` — ${new Date(s.end_date_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`}
+                        {new Date(asUTC(s.start_date_time)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                        {s.end_date_time && ` — ${new Date(asUTC(s.end_date_time)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`}
                       </span>
                     )}
                     {s.difficulty_rating != null && (
@@ -926,7 +932,7 @@ export default function Stats() {
           {latest ? (
             <>
               <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', marginBottom: 10 }}>
-                LATEST — {new Date(latest.date_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                LATEST — {new Date(asUTC(latest.date_time)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </p>
               <div className="stats-grid">
                 {MEASUREMENT_FIELDS.filter(f => latest[f.key] != null).map(f => (
@@ -1277,7 +1283,7 @@ export default function Stats() {
                   </div>
                   {pr.pr_date && (
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>
-                      {new Date(pr.pr_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {new Date(asUTC(pr.pr_date)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </span>
                   )}
                 </div>
@@ -1324,8 +1330,8 @@ export default function Stats() {
 
           const chartData = activeEx
             ? activeEx.history
-                .filter(h => new Date(h.date).getTime() >= cutoff)
-                .map(h => ({ ts: new Date(h.date).getTime(), value: Number(h.max_weight_kg) }))
+                .filter(h => new Date(asUTC(h.date)).getTime() >= cutoff)
+                .map(h => ({ ts: new Date(asUTC(h.date)).getTime(), value: Number(h.max_weight_kg) }))
                 .sort((a, b) => a.ts - b.ts)
             : []
 

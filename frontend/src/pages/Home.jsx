@@ -1,11 +1,18 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Layout from '../components/Layout'
+import { useAuth } from '../context/AuthContext'
+
+function asUTC(iso) {
+  if (!iso) return null
+  const s = String(iso).replace(' ', 'T')
+  return s.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(s) ? s : s + 'Z'
+}
 
 function fmtLastRan(iso) {
   if (!iso) return null
   const today = new Date(); today.setHours(0, 0, 0, 0)
-  const then  = new Date(iso); then.setHours(0, 0, 0, 0)
+  const then  = new Date(asUTC(iso)); then.setHours(0, 0, 0, 0)
   const days  = Math.round((today - then) / 86400000)
   if (days === 0) return 'TODAY'
   if (days === 1) return '1 DAY AGO'
@@ -13,7 +20,7 @@ function fmtLastRan(iso) {
   const weeks = Math.floor(days / 7)
   if (weeks === 1) return '1 WEEK AGO'
   if (weeks < 5) return `${weeks} WEEKS AGO`
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
+  return new Date(asUTC(iso)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
 }
 
 export default function Home() {
