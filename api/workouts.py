@@ -2,7 +2,7 @@ import json
 from flask import Blueprint, jsonify, request, session
 from psycopg.rows import dict_row
 
-from api.utils import api_route, DB_SCHEMA, db_error_message
+from api.utils import api_route, DB_SCHEMA, db_error_message, serialize_row
 
 workouts_bp = Blueprint('workouts', __name__)
 
@@ -230,7 +230,7 @@ def list_sessions(conn, workout_id):
             (user_id, workout_id)
         )
         rows = cur.fetchall()
-    return jsonify(status="ok", sessions=[dict(r) for r in rows])
+    return jsonify(status="ok", sessions=[serialize_row(r) for r in rows])
 
 
 @workouts_bp.route("/api/workouts/<int:workout_id>/sessions/in-progress")
