@@ -311,6 +311,12 @@ export default function ViewWorkout() {
                   <span className="stat-value" style={{ color: 'var(--accent)' }}>{history.in_progress_sessions}</span>
                 </div>
               )}
+              {history.abandoned_sessions > 0 && (
+                <div className="stat-item">
+                  <span className="stat-label">ABANDONED</span>
+                  <span className="stat-value" style={{ color: 'var(--danger)' }}>{history.abandoned_sessions}</span>
+                </div>
+              )}
               <div className="stat-item">
                 <span className="stat-label">LAST STARTED</span>
                 <span className="data-monospace" style={{ fontSize: 14, marginTop: 4 }}>{fmtDate(history.last_started_at)}</span>

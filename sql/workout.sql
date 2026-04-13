@@ -1,13 +1,20 @@
 -- Aggregate workout session history.
-CREATE OR REPLACE VIEW vw_workout_history_summary AS 
+CREATE OR REPLACE VIEW vw_workout_history_summary AS
     SELECT
         w.workout_id,
         COUNT(ws.workout_session_id) AS total_sessions,
-        COUNT(ws.workout_session_id) FILTER (WHERE ws.completion_status = 'Completed') AS completed_sessions,
+        COUNT(ws.workout_session_id) FILTER (
+            WHERE ws.completion_status = 'Completed'
+                AND (ws.notes IS NULL OR ws.notes <> 'Abandoned')
+        ) AS completed_sessions,
         COUNT(ws.workout_session_id) FILTER (WHERE ws.completion_status = 'In Progress') AS in_progress_sessions,
         MAX(ws.start_date_time) AS last_started_at,
-        MAX(ws.end_date_time) FILTER (WHERE ws.completion_status = 'Completed') AS last_completed_at
-    FROM workout w 
+        MAX(ws.end_date_time) FILTER (WHERE ws.completion_status = 'Completed') AS last_completed_at,
+        COUNT(ws.workout_session_id) FILTER (
+            WHERE ws.completion_status = 'Completed'
+                AND ws.notes = 'Abandoned'
+        ) AS abandoned_sessions
+    FROM workout w
     LEFT JOIN workout_session ws
         ON w.workout_id = ws.workout_id
     GROUP BY w.workout_id;
@@ -167,6 +174,7 @@ RETURNS TABLE (
     total_sessions BIGINT,
     completed_sessions BIGINT,
     in_progress_sessions BIGINT,
+    abandoned_sessions BIGINT,
     last_started_at TIMESTAMP,
     last_completed_at TIMESTAMP,
     average_difficulty NUMERIC,
@@ -179,6 +187,7 @@ AS $$
         COALESCE(v.total_sessions, 0) AS total_sessions,
         COALESCE(v.completed_sessions, 0) AS completed_sessions,
         COALESCE(v.in_progress_sessions, 0) AS in_progress_sessions,
+        COALESCE(v.abandoned_sessions, 0) AS abandoned_sessions,
         v.last_started_at,
         v.last_completed_at,
         ROUND(AVG(ws.difficulty_rating), 1) AS average_difficulty,
@@ -195,6 +204,7 @@ AS $$
         v.total_sessions,
         v.completed_sessions,
         v.in_progress_sessions,
+        v.abandoned_sessions,
         v.last_started_at,
         v.last_completed_at
 $$;
