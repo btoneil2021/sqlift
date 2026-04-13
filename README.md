@@ -1,7 +1,26 @@
-# SQLift (CS-5200 Project)
+<div align="center">
+  <h1>SQLift (CS-5200 Project)</h1>
 
-- **Live App:** [https://cs-5200-project.vercel.app](https://cs-5200-project.vercel.app)
-- **GitHub Repository:** [https://github.com/btoneil2021/cs-5200-project](https://github.com/btoneil2021/cs-5200-project)
+  <p align="center">
+    <a href="https://cs-5200-project.vercel.app"><img src="https://img.shields.io/badge/status-Live_Demo-success?style=for-the-badge&logo=vercel" alt="Live Demo" /></a>
+    <a href="https://github.com/btoneil2021/cs-5200-project"><img src="https://img.shields.io/github/repo-size/btoneil2021/cs-5200-project?style=for-the-badge" alt="GitHub repo size"></a>
+    <a href="https://github.com/btoneil2021/cs-5200-project/commits/main"><img src="https://img.shields.io/github/last-commit/btoneil2021/cs-5200-project?style=for-the-badge&color=2ea043" alt="Last Commit"></a>
+  </p>
+
+  <p align="center">
+    <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React" />
+    <img src="https://img.shields.io/badge/Vite-B73BFE?style=for-the-badge&logo=vite&logoColor=FFD62E" alt="Vite" />
+    <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
+    <img src="https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white" alt="Flask" />
+    <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
+  </p>
+
+  <h4>
+    <a href="https://cs-5200-project.vercel.app">View Live App</a>
+    <span> · </span>
+    <a href="https://github.com/btoneil2021/cs-5200-project">View Repository</a>
+  </h4>
+</div>
 
 This is a workout and achievement tracking application built with a Flask backend, a React/Vite frontend, and a PostgreSQL (Supabase) database.
 
@@ -32,7 +51,7 @@ You can place this project anywhere on your computer (e.g., your `Documents` or 
 
 Open your terminal or command prompt (such as PowerShell or Git Bash) and clone the repository:
 ```bash
-git clone <repository_url>
+git clone https://github.com/btoneil2021/cs-5200-project
 cd cs-5200-project
 ```
 
