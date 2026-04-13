@@ -144,7 +144,7 @@ CREATE TABLE workout_tag_assignment (
 
 
   FOREIGN KEY (workout_id) REFERENCES workout(workout_id) ON DELETE CASCADE,
-  FOREIGN KEY (tag_name) REFERENCES workout_tag(name) ON DELETE CASCADE
+  FOREIGN KEY (tag_name) REFERENCES workout_tag(name) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 
