@@ -67,7 +67,7 @@ CREATE TABLE measurement_log (
   PRIMARY KEY (user_id, date_time),
 
 
-  FOREIGN KEY (user_id) REFERENCES "user"(user_id) ON DELETE CASCADE
+  FOREIGN KEY (user_id) REFERENCES "user"(user_id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 
@@ -87,7 +87,7 @@ CREATE TABLE user_goal (
   completion_status TEXT,
 
 
-    FOREIGN KEY (user_id) REFERENCES "user"(user_id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES "user"(user_id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 
@@ -98,8 +98,8 @@ CREATE TABLE user_achievement (
   PRIMARY KEY (user_id, achievement_id),
 
 
-  FOREIGN KEY (user_id) REFERENCES "user"(user_id) ON DELETE CASCADE,
-  FOREIGN KEY (achievement_id) REFERENCES achievement(achievement_id) ON DELETE CASCADE
+  FOREIGN KEY (user_id) REFERENCES "user"(user_id) ON UPDATE CASCADE ON DELETE CASCADE,
+  FOREIGN KEY (achievement_id) REFERENCES achievement(achievement_id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 
@@ -110,8 +110,8 @@ CREATE TABLE user_friendship (
   PRIMARY KEY (user_id, friend_user_id),
 
 
-  FOREIGN KEY (user_id) REFERENCES "user"(user_id) ON DELETE CASCADE,
-  FOREIGN KEY (friend_user_id) REFERENCES "user"(user_id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES "user"(user_id) ON UPDATE CASCADE ON DELETE CASCADE,
+  FOREIGN KEY (friend_user_id) REFERENCES "user"(user_id) ON UPDATE CASCADE ON DELETE CASCADE,
 
 
   CHECK (user_id <> friend_user_id)
@@ -127,7 +127,7 @@ CREATE TABLE workout (
   UNIQUE (user_id, workout_id),
 
 
-  FOREIGN KEY (user_id) REFERENCES "user"(user_id) ON DELETE CASCADE
+  FOREIGN KEY (user_id) REFERENCES "user"(user_id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 
@@ -143,7 +143,7 @@ CREATE TABLE workout_tag_assignment (
   PRIMARY KEY (workout_id, tag_name),
 
 
-  FOREIGN KEY (workout_id) REFERENCES workout(workout_id) ON DELETE CASCADE,
+  FOREIGN KEY (workout_id) REFERENCES workout(workout_id) ON UPDATE CASCADE ON DELETE CASCADE,
   FOREIGN KEY (tag_name) REFERENCES workout_tag(name) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
@@ -163,7 +163,7 @@ CREATE TABLE workout_session (
   UNIQUE (workout_id, start_date_time),
 
 
-  FOREIGN KEY (workout_id) REFERENCES workout(workout_id) ON DELETE CASCADE,
+  FOREIGN KEY (workout_id) REFERENCES workout(workout_id) ON UPDATE CASCADE ON DELETE CASCADE,
 
   
   CHECK (difficulty_rating >= 0 AND difficulty_rating <= 10),
@@ -192,8 +192,8 @@ CREATE TABLE workout_exercise (
   PRIMARY KEY (workout_id, sort_order),
 
 
-  FOREIGN KEY (workout_id) REFERENCES workout(workout_id) ON DELETE CASCADE,
-  FOREIGN KEY (exercise_id) REFERENCES exercise(exercise_id) ON DELETE CASCADE,
+  FOREIGN KEY (workout_id) REFERENCES workout(workout_id) ON UPDATE CASCADE ON DELETE CASCADE,
+  FOREIGN KEY (exercise_id) REFERENCES exercise(exercise_id) ON UPDATE CASCADE ON DELETE CASCADE,
 
   CHECK (sort_order > 0),
   CHECK (target_sets > 0),
@@ -218,8 +218,8 @@ CREATE TABLE exercise_equipment (
   PRIMARY KEY (exercise_id, equipment_id),
 
 
-  FOREIGN KEY (exercise_id) REFERENCES exercise(exercise_id) ON DELETE CASCADE,
-  FOREIGN KEY (equipment_id) REFERENCES equipment(equipment_id) ON DELETE CASCADE
+  FOREIGN KEY (exercise_id) REFERENCES exercise(exercise_id) ON UPDATE CASCADE ON DELETE CASCADE,
+  FOREIGN KEY (equipment_id) REFERENCES equipment(equipment_id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 
@@ -229,7 +229,7 @@ CREATE TABLE media (
   type TEXT NOT NULL,
 
 
-  FOREIGN KEY (exercise_id) REFERENCES exercise(exercise_id) ON DELETE CASCADE
+  FOREIGN KEY (exercise_id) REFERENCES exercise(exercise_id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 
@@ -250,8 +250,8 @@ CREATE TABLE exercise_muscle_group (
   PRIMARY KEY (exercise_id, muscle_id),
 
 
-  FOREIGN KEY (exercise_id) REFERENCES exercise(exercise_id) ON DELETE CASCADE,
-  FOREIGN KEY (muscle_id) REFERENCES muscle_group(muscle_id) ON DELETE CASCADE
+  FOREIGN KEY (exercise_id) REFERENCES exercise(exercise_id) ON UPDATE CASCADE ON DELETE CASCADE,
+  FOREIGN KEY (muscle_id) REFERENCES muscle_group(muscle_id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 
@@ -265,8 +265,8 @@ CREATE TABLE record_log (
 
 
   UNIQUE (workout_session_id, number),
-  FOREIGN KEY (workout_session_id) REFERENCES workout_session(workout_session_id) ON DELETE CASCADE,
-  FOREIGN KEY (exercise_id) REFERENCES exercise(exercise_id) ON DELETE CASCADE,
+  FOREIGN KEY (workout_session_id) REFERENCES workout_session(workout_session_id) ON UPDATE CASCADE ON DELETE CASCADE,
+  FOREIGN KEY (exercise_id) REFERENCES exercise(exercise_id) ON UPDATE CASCADE ON DELETE CASCADE,
 
   CHECK (number > 0)
 );
@@ -284,7 +284,7 @@ CREATE TABLE set_log (
   UNIQUE (record_log_id, number),
 
 
-  FOREIGN KEY (record_log_id) REFERENCES record_log(record_log_id) ON DELETE CASCADE,
+  FOREIGN KEY (record_log_id) REFERENCES record_log(record_log_id) ON UPDATE CASCADE ON DELETE CASCADE,
 
   CHECK (number > 0),
   CHECK (weight >= 0),
