@@ -25,9 +25,35 @@ function fmtLastRan(iso) {
 
 export default function Home() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [workouts, setWorkouts] = useState([])
   const [loadingWorkouts, setLoadingWorkouts] = useState(true)
   const [workoutsError, setWorkoutsError] = useState(null)
+  const [currentStreak, setCurrentStreak] = useState(0)
+  const [streakLoading, setStreakLoading] = useState(true)
+  const [totalVolume, setTotalVolume] = useState(0)
+  const [volumeLoading, setVolumeLoading] = useState(true)
+  const [avgSessionMinutes, setAvgSessionMinutes] = useState(0)
+
+  useEffect(() => {
+    if (!user) return
+    fetch(`/api/stats/${user.user_id}/workout-history`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'ok') setCurrentStreak(data.current_streak ?? 0)
+      })
+      .finally(() => setStreakLoading(false))
+
+    fetch(`/api/stats/${user.user_id}/hero-stats`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'ok' && data.stats) {
+          setTotalVolume(data.stats.total_volume_kg ?? 0)
+          setAvgSessionMinutes(data.stats.avg_session_minutes ?? 0)
+        }
+      })
+      .finally(() => setVolumeLoading(false))
+  }, [user])
 
   useEffect(() => {
     fetch('/api/workouts/list', { credentials: 'include' })
@@ -76,12 +102,6 @@ export default function Home() {
           <h2 className="panel-title">TELEMETRY</h2>
           <div className="stats-grid">
             <div className="stat-item">
-              <span className="stat-label">SAVED WORKOUTS</span>
-              <span className="stat-value text-accent">
-                {loadingWorkouts ? '—' : String(workouts.length).padStart(3, '0')}
-              </span>
-            </div>
-            <div className="stat-item">
               <span className="stat-label">TOTAL SESSIONS</span>
               <span className="stat-value">
                 {loadingWorkouts
@@ -89,7 +109,29 @@ export default function Home() {
                   : String(workouts.reduce((s, w) => s + (w.total_sessions || 0), 0)).padStart(3, '0')}
               </span>
             </div>
+            <div className="stat-item">
+              <span className="stat-label">CURRENT STREAK</span>
+              <span className="stat-value" style={{ color: currentStreak > 0 ? 'var(--accent)' : 'var(--text-muted)' }}>
+                {streakLoading ? '—' : currentStreak}
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)', marginLeft: 4 }}>days</span>
+              </span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">TOTAL VOLUME</span>
+              <span className="stat-value">
+                {volumeLoading ? '—' : totalVolume >= 1000 ? `${(totalVolume / 1000).toFixed(1)}k` : totalVolume}
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)', marginLeft: 4 }}>kg</span>
+              </span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">AVG SESSION</span>
+              <span className="stat-value">
+                {volumeLoading ? '—' : avgSessionMinutes}
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)', marginLeft: 4 }}>min</span>
+              </span>
+            </div>
           </div>
+
           <Link to="/stats" className="btn btn--ghost btn--full mt-auto">View Full Telemetry »</Link>
         </section>
 
