@@ -55,19 +55,47 @@ git clone https://github.com/btoneil2021/cs-5200-project
 cd cs-5200-project
 ```
 
-### 2. Environment Variables
-The application requires a PostgreSQL database (hosted on Supabase) and a secret key for session management. 
-Create a `.env` file in the root directory (you can copy `.env.example` if it exists) and add the following configuration:
+### 2. Set Up Your Supabase Database
+
+You'll need your own free Supabase project. The app does not share a database, so each person running this locally needs their own.
+
+1. Go to [supabase.com](https://supabase.com) and create a free account.
+2. Click **New Project**, give it a name, set a strong database password, and choose a region.
+3. Once the project is ready, run the SQL files in order using the **SQL Editor** in the Supabase dashboard:
+     1. `sql/create-tables.sql` — creates the schema, ENUMs, and all tables
+     2. `sql/auth_procs.sql`
+     3. `sql/profile_procs.sql`
+     4. `sql/workout.sql`
+     5. `sql/achievement_procs.sql`
+     6. `sql/leaderboard_procs.sql`
+     7. `sql/stats_procs.sql`
+     8. `sql/View_workout.sql`
+   - Optionally, run `sql/database_dump.sql` **after** the above steps to seed the database with exercise and equipment data. The dump is inserts only — it requires the schema to already exist.
+
+4. Get your connection string: **Project Settings > Database > Connection string > Transaction pooler (port 6543)**.
+
+### 3. Environment Variables
+
+Copy `.env.example` to `.env` and fill in your values:
+
+```bash
+cp .env.example .env
+```
 
 ```
-# Use the connection string from Supabase > Connect > Direct > Transaction Pooler
-DATABASE_URL="postgresql://postgres.llogioyvqexdoyvqqtti:[YOUR-PASSWORD]@aws-1-us-east-1.pooler.supabase.com:6543/postgres"
-DATABASE_PASSWORD="your-real-password-here"
+# Your Supabase transaction pooler connection string (port 6543)
+DATABASE_URL="postgresql://postgres.<your-project-ref>:[YOUR-PASSWORD]@<region>.pooler.supabase.com:6543/postgres"
+
+# The database password you set when creating the Supabase project
+DATABASE_PASSWORD="your-supabase-db-password"
+
+# Generate one with: python -c "import secrets; print(secrets.token_hex(32))"
 SECRET_KEY="replace-with-a-long-random-string"
 ```
-*Note: This project talks to the Supabase Postgres database through the Flask backend, not directly from the browser. The `DATABASE_PASSWORD` acts as a replacement for the `[YOUR-PASSWORD]` placeholder in the URL.*
 
-### 3. Install Dependencies
+*The `DATABASE_PASSWORD` value is substituted into the URL at runtime — it replaces the `[YOUR-PASSWORD]` placeholder.*
+
+### 4. Install Dependencies
 
 You will need to install dependencies for the root workspace, the frontend, and the backend.
 
