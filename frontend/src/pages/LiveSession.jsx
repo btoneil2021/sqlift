@@ -108,8 +108,8 @@ function SetRowEdit({ initial, onSave, onCancel }) {
 }
 
 // ── Add set form ──────────────────────────────────────────────────────────────
-function AddSetForm({ onSave, onCancel }) {
-  const [form, setForm] = useState(emptySetForm())
+function AddSetForm({ onSave, onCancel, initialValues }) {
+  const [form, setForm] = useState({ ...emptySetForm(), ...initialValues })
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
 
   return (
@@ -421,6 +421,11 @@ export default function LiveSession() {
         {/* ── Record cards ── */}
         {sortedRecords.map(rec => {
           const sortedSets = [...rec.sets].sort((a, b) => a.number - b.number)
+          const lastSet = sortedSets.length > 0 ? sortedSets[sortedSets.length - 1] : null
+          const plannedEx = planned_exercises.find(pe => pe.exercise_id === rec.exercise_id)
+          const addSetInitial = lastSet
+            ? { weight: lastSet.weight ?? '', reps: lastSet.reps ?? '', rpe: lastSet.rpe ?? '', rest_time: lastSet.rest_time || '' }
+            : { weight: plannedEx?.target_weight ?? '', reps: plannedEx?.target_reps ?? '' }
           return (
             <div key={rec.record_log_id} className="record-card">
               <div className="record-card__header">
@@ -467,6 +472,7 @@ export default function LiveSession() {
                     ? <AddSetForm
                         onSave={(form) => handleAddSet(rec.record_log_id, form)}
                         onCancel={() => setAddingSetFor(null)}
+                        initialValues={addSetInitial}
                       />
                     : (
                       <button
