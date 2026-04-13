@@ -2,7 +2,7 @@ import re
 from urllib.parse import urlparse
 
 
-_BUCKETS = {
+_MUSCLE_GROUPS = {
     "Chest",
     "Back",
     "Shoulders",
@@ -50,41 +50,29 @@ _KEYWORD_MAP = [
 ]
 
 
-def _normalize_text(value):
+def _clean_text(value):
     value = value.strip().lower()
     value = re.sub(r"[^a-z0-9]+", " ", value)
     value = re.sub(r"\s+", " ", value).strip()
     return value
 
 
-def normalize_muscle_group(raw_name):
-    """
-    Normalize a raw muscle label into a broad user-facing bucket.
-
-    Unknown or empty inputs intentionally return None to avoid inventing
-    categories that the UI doesn't recognize.
-    """
-    if raw_name is None:
+def normalize_muscle_group(raw_muscle_name):
+    if raw_muscle_name is None:
         return None
 
-    normalized = _normalize_text(str(raw_name))
+    normalized = _clean_text(str(raw_muscle_name))
     if not normalized:
         return None
 
-    for keyword, bucket in _KEYWORD_MAP:
+    for keyword, muscle_group in _KEYWORD_MAP:
         if keyword in normalized:
-            return bucket
+            return muscle_group
 
     return None
 
 
 def normalize_media_type(url):
-    """
-    Normalize a media URL into a simple file-type label for storage.
-
-    Wger exposes exercise media as image URLs, so the file extension is the
-    most reliable discriminator available from the API payload.
-    """
     if not url:
         return None
 
