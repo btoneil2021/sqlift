@@ -277,7 +277,7 @@ BEGIN
       AND ws.completion_status = 'Completed'
       AND sl.weight IS NOT NULL
       AND sl.weight > 0
-    GROUP BY e.exercise_id, e.name, ws.start_date_time::DATE
+    GROUP BY e.exercise_id, e.name, ws.workout_session_id, ws.start_date_time::DATE
     ORDER BY e.name, ws.start_date_time::DATE;
 END;
 $$ LANGUAGE plpgsql;

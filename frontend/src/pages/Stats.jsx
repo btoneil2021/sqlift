@@ -1328,12 +1328,19 @@ export default function Stats() {
 
           const activeEx = exerciseProgression.find(e => e.exercise_id === activeTabId) ?? null
 
-          const chartData = activeEx
+          const chartDataFiltered = activeEx
             ? activeEx.history
                 .filter(h => new Date(asUTC(h.date)).getTime() >= cutoff)
                 .map(h => ({ ts: new Date(asUTC(h.date)).getTime(), value: Number(h.max_weight_kg) }))
                 .sort((a, b) => a.ts - b.ts)
             : []
+          const chartDataAll = activeEx
+            ? activeEx.history
+                .map(h => ({ ts: new Date(asUTC(h.date)).getTime(), value: Number(h.max_weight_kg) }))
+                .sort((a, b) => a.ts - b.ts)
+            : []
+          const chartFallingBack = chartDataFiltered.length < 2 && chartDataAll.length >= 2
+          const chartData = chartFallingBack ? chartDataAll : chartDataFiltered
 
           return (
             <>
@@ -1446,10 +1453,15 @@ export default function Stats() {
                         </div>
                         {chartData.length < 2 ? (
                           <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
-                            Not enough data in this range — try a wider window.
+                            Not enough data — log at least 2 sessions to see progression.
                           </p>
                         ) : (
                           <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', padding: '14px 16px' }}>
+                            {chartFallingBack && (
+                              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', marginBottom: 8 }}>
+                                NOT ENOUGH DATA IN RANGE — SHOWING ALL-TIME
+                              </p>
+                            )}
                             <ExerciseSparkline data={chartData} label="MAX WEIGHT (kg)" />
                           </div>
                         )}
