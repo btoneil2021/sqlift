@@ -4,8 +4,9 @@ import Layout from '../components/Layout'
 
 function fmtLastRan(iso) {
   if (!iso) return null
-  const diff = Date.now() - new Date(iso).getTime()
-  const days = Math.floor(diff / 86400000)
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const then  = new Date(iso); then.setHours(0, 0, 0, 0)
+  const days  = Math.round((today - then) / 86400000)
   if (days === 0) return 'TODAY'
   if (days === 1) return '1 DAY AGO'
   if (days < 7) return `${days} DAYS AGO`
