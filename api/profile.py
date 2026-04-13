@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request, session
 from psycopg.rows import dict_row
 import bcrypt
 
-from api.utils import api_route
+from api.utils import api_route, serialize_row
 
 profile_bp = Blueprint('profile', __name__)
 
@@ -132,7 +132,7 @@ def get_measurements(conn, user_id):
         cur.execute("SELECT * FROM sqlift.get_latest_measurements(%s)", (user_id,))
         rows = cur.fetchall()
 
-    return jsonify(status="ok", measurements=rows)
+    return jsonify(status="ok", measurements=[serialize_row(r) for r in rows])
 
 
 @profile_bp.route("/api/profile/<int:user_id>/friends", methods=["GET"])

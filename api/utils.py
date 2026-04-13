@@ -1,4 +1,5 @@
 import os
+import datetime
 import psycopg
 from flask import jsonify, current_app
 from functools import wraps
@@ -10,6 +11,15 @@ DB_SCHEMA = "sqlift"
 DB_SSL_MODE = "require"
 RATE_LIMIT_DEFAULT = "40 per minute"
 RATE_LIMIT_STORAGE = "memory://"
+
+
+def serialize_row(row):
+    if row is None:
+        return None
+    return {
+        k: v.isoformat() if isinstance(v, (datetime.datetime, datetime.date)) else v
+        for k, v in row.items()
+    }
 
 
 def tbl(name: str) -> str:

@@ -2,7 +2,7 @@ import datetime
 from flask import Blueprint, jsonify, request, session
 from psycopg.rows import dict_row
 
-from api.utils import api_route
+from api.utils import api_route, serialize_row
 
 stats_bp = Blueprint('stats', __name__)
 
@@ -53,7 +53,7 @@ def log_measurement(conn, user_id):
         row = cur.fetchone()
         conn.commit()
 
-    return jsonify(status="ok", measurement=row), 201
+    return jsonify(status="ok", measurement=serialize_row(row)), 201
 
 
 @stats_bp.route("/api/stats/<int:user_id>/goals", methods=["GET"])

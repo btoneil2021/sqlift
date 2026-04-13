@@ -4,6 +4,11 @@ import { useAuth } from '../context/AuthContext'
 
 
 
+function asUTC(iso) {
+  if (!iso) return null
+  return iso.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(iso) ? iso : iso + 'Z'
+}
+
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 function parseGoalDate(dateStr) {
@@ -223,7 +228,7 @@ export default function Profile() {
     const up = parseFloat(d) > 0
     return (
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, marginTop: 2, color: up ? 'var(--danger)' : 'var(--success)' }}>
-        {up ? '+' : ''}{d}% vs {prev.date_time ? new Date(prev.date_time).toLocaleDateString('en-US', { month: 'short', d: 'numeric' }) : 'prev'}
+        {up ? '+' : ''}{d}% vs {prev.date_time ? new Date(asUTC(prev.date_time)).toLocaleDateString('en-US', { month: 'short', d: 'numeric' }) : 'prev'}
       </span>
     )
   }
@@ -388,7 +393,7 @@ export default function Profile() {
         <div className="dashboard-card">
           <div className="flex-header">
             <span className="panel-title">
-              LATEST MEASUREMENTS{latest ? ` — ${new Date(latest.date_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+              LATEST MEASUREMENTS{latest ? ` — ${new Date(asUTC(latest.date_time)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
             </span>
             <a href="/stats" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', textDecoration: 'none' }}>
               LOG →
@@ -627,7 +632,7 @@ export default function Profile() {
             }}>
               <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--text-h)' }}>{a.name}</span>
               <span style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.4 }}>{a.description}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>EARNED {a.date_earned}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>EARNED {new Date(asUTC(a.date_earned)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
             </div>
           ))}
         </div>
