@@ -51,10 +51,10 @@ function SetRowDisplay({ s, onEdit, onDelete, readOnly }) {
       </div>
       {!readOnly && (
         <div className="set-row__actions">
-          <button className="btn btn--ghost btn--sm" style={{ margin: 0 }} onClick={onEdit}>EDIT</button>
+          <button className="btn btn--ghost btn--sm" onClick={onEdit}>EDIT</button>
           <button
             className="btn btn--ghost btn--sm"
-            style={{ margin: 0, color: 'var(--danger)' }}
+            style={{ color: 'var(--danger)' }}
             onClick={onDelete}
           >✕</button>
         </div>
@@ -100,8 +100,8 @@ function SetRowEdit({ initial, onSave, onCancel }) {
         <input type="text" placeholder="00:01:30" value={form.rest_time} onChange={set('rest_time')} />
       </div>
       <div className="set-row__actions">
-        <button className="btn btn--accent btn--sm" style={{ margin: 0 }} onClick={() => onSave(form)}>SAVE</button>
-        <button className="btn btn--ghost btn--sm" style={{ margin: 0 }} onClick={onCancel}>CANCEL</button>
+        <button className="btn btn--accent btn--sm" onClick={() => onSave(form)}>SAVE</button>
+        <button className="btn btn--ghost btn--sm" onClick={onCancel}>CANCEL</button>
       </div>
     </div>
   )
@@ -143,8 +143,8 @@ function AddSetForm({ onSave, onCancel }) {
           <input type="text" placeholder="00:01:30" value={form.rest_time} onChange={set('rest_time')} />
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-          <button className="btn btn--accent btn--sm" style={{ margin: 0 }} onClick={() => onSave(form)}>ADD SET</button>
-          <button className="btn btn--ghost btn--sm" style={{ margin: 0 }} onClick={onCancel}>CANCEL</button>
+          <button className="btn btn--accent btn--sm" onClick={() => onSave(form)}>ADD SET</button>
+          <button className="btn btn--ghost btn--sm" onClick={onCancel}>CANCEL</button>
         </div>
       </div>
     </div>
@@ -409,17 +409,6 @@ export default function LiveSession() {
                 )}
               </div>
             </div>
-            {isInProgress && (
-              <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
-                <button
-                  className="btn btn--danger btn--sm"
-                  style={{ margin: 0 }}
-                  onClick={handleAbandon}
-                >
-                  ABANDON
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
@@ -444,7 +433,7 @@ export default function LiveSession() {
                 {isInProgress && (
                   <button
                     className="btn btn--ghost btn--sm"
-                    style={{ margin: 0, color: 'var(--danger)' }}
+                    style={{ color: 'var(--danger)' }}
                     onClick={() => handleDeleteRecord(rec.record_log_id)}
                   >
                     ✕ DELETE
@@ -482,7 +471,7 @@ export default function LiveSession() {
                     : (
                       <button
                         className="btn btn--outline btn--sm"
-                        style={{ margin: 0, marginTop: 8, alignSelf: 'flex-start' }}
+                        style={{ marginTop: 8, alignSelf: 'flex-start' }}
                         onClick={() => { setAddingSetFor(rec.record_log_id); setEditingSetId(null) }}
                       >
                         + ADD SET
@@ -498,7 +487,6 @@ export default function LiveSession() {
         {isInProgress && (
           <button
             className="btn btn--outline btn--full"
-            style={{ margin: 0 }}
             onClick={() => { setPickerOpen(p => !p); setAddingSetFor(null); setEditingSetId(null) }}
           >
             {pickerOpen ? '— CLOSE EXERCISE PICKER' : '+ ADD RECORD'}
@@ -522,7 +510,6 @@ export default function LiveSession() {
                       <div className="exercise-row__actions">
                         <button
                           className="btn btn--accent btn--sm"
-                          style={{ margin: 0 }}
                           onClick={() => handleAddRecord(pe.exercise_id)}
                         >
                           + ADD
@@ -602,16 +589,16 @@ export default function LiveSession() {
 
               <div style={{ display: 'flex', gap: 12 }}>
                 <button
-                  className="btn btn--accent"
-                  style={{ flex: 1, margin: 0, fontSize: 15, padding: '12px 24px', fontFamily: 'var(--font-display)', letterSpacing: '0.5px' }}
+                  className="btn btn--accent btn--cta"
+                  style={{ flex: 1 }}
                   onClick={handleFinish}
                   disabled={finishing}
                 >
                   {finishing ? 'FINISHING...' : 'FINISH SESSION ✓'}
                 </button>
                 <button
-                  className="btn btn--ghost"
-                  style={{ margin: 0, color: 'var(--danger)', fontSize: 13 }}
+                  className="btn btn--ghost btn--sm"
+                  style={{ color: 'var(--danger)' }}
                   onClick={handleAbandon}
                 >
                   ABANDON
@@ -654,7 +641,7 @@ export default function LiveSession() {
 
               <button
                 className="btn btn--outline"
-                style={{ margin: 0, alignSelf: 'flex-start' }}
+                style={{ alignSelf: 'flex-start' }}
                 onClick={() => navigate(`/workout/${sess.workout_id}`)}
               >
                 ← BACK TO WORKOUT

@@ -247,4 +247,10 @@ def get_in_progress_session(conn, workout_id):
         row = cur.fetchone()
     if not row:
         return jsonify(status="none")
-    return jsonify(status="ok", session=dict(row))
+    s = dict(row)
+    for key in ("start_date_time", "end_date_time"):
+        if s.get(key) is not None:
+            s[key] = s[key].isoformat()
+    if s.get("completion_status") is not None:
+        s["completion_status"] = str(s["completion_status"])
+    return jsonify(status="ok", session=s)
