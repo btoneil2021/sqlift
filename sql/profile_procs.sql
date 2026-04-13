@@ -231,25 +231,75 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Returns the two most recent measurement log entries for a user
+-- Returns the two most recent measurement log entries for a user (for profile comparison)
 CREATE OR REPLACE FUNCTION get_latest_measurements(p_user_id BIGINT)
 RETURNS TABLE (
-    date_time         TIMESTAMP,
-    weight            DECIMAL(6,2),
-    waist_measurement DECIMAL(6,2),
-    chest_measurement DECIMAL(6,2),
-    bicep_measurement DECIMAL(6,2)
+    date_time               TIMESTAMP,
+    weight                  DECIMAL(6,2),
+    visual_body_fat_percent DECIMAL(5,2),
+    neck_measurement        DECIMAL(6,2),
+    shoulder_measurement    DECIMAL(6,2),
+    chest_measurement       DECIMAL(6,2),
+    bicep_measurement       DECIMAL(6,2),
+    forearm_measurement     DECIMAL(6,2),
+    waist_measurement       DECIMAL(6,2),
+    hips_measurement        DECIMAL(6,2),
+    thigh_measurement       DECIMAL(6,2),
+    calve_measurement       DECIMAL(6,2)
 ) AS $$
 BEGIN
     RETURN QUERY
     SELECT m.date_time,
            m.weight,
-           m.waist_measurement,
+           m.visual_body_fat_percent,
+           m.neck_measurement,
+           m.shoulder_measurement,
            m.chest_measurement,
-           m.bicep_measurement
+           m.bicep_measurement,
+           m.forearm_measurement,
+           m.waist_measurement,
+           m.hips_measurement,
+           m.thigh_measurement,
+           m.calve_measurement
     FROM sqlift.measurement_log m
     WHERE m.user_id = p_user_id
     ORDER BY m.date_time DESC
     LIMIT 2;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Returns all measurement log entries for a user (for stats graph)
+CREATE OR REPLACE FUNCTION get_all_measurements(p_user_id BIGINT)
+RETURNS TABLE (
+    date_time               TIMESTAMP,
+    weight                  DECIMAL(6,2),
+    visual_body_fat_percent DECIMAL(5,2),
+    neck_measurement        DECIMAL(6,2),
+    shoulder_measurement    DECIMAL(6,2),
+    chest_measurement       DECIMAL(6,2),
+    bicep_measurement       DECIMAL(6,2),
+    forearm_measurement     DECIMAL(6,2),
+    waist_measurement       DECIMAL(6,2),
+    hips_measurement        DECIMAL(6,2),
+    thigh_measurement       DECIMAL(6,2),
+    calve_measurement       DECIMAL(6,2)
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT m.date_time,
+           m.weight,
+           m.visual_body_fat_percent,
+           m.neck_measurement,
+           m.shoulder_measurement,
+           m.chest_measurement,
+           m.bicep_measurement,
+           m.forearm_measurement,
+           m.waist_measurement,
+           m.hips_measurement,
+           m.thigh_measurement,
+           m.calve_measurement
+    FROM sqlift.measurement_log m
+    WHERE m.user_id = p_user_id
+    ORDER BY m.date_time DESC;
 END;
 $$ LANGUAGE plpgsql;

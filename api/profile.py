@@ -135,6 +135,19 @@ def get_measurements(conn, user_id):
     return jsonify(status="ok", measurements=[serialize_row(r) for r in rows])
 
 
+@profile_bp.route("/api/profile/<int:user_id>/measurements/history", methods=["GET"])
+@api_route(limit="30 per minute")
+def get_measurements_history(conn, user_id):
+    if session.get("user_id") != user_id:
+        return jsonify(status="error", message="Not authorized."), 403
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT * FROM sqlift.get_all_measurements(%s)", (user_id,))
+        rows = cur.fetchall()
+
+    return jsonify(status="ok", measurements=[serialize_row(r) for r in rows])
+
+
 @profile_bp.route("/api/profile/<int:user_id>/friends", methods=["GET"])
 @api_route(limit="30 per minute")
 def get_friends(conn, user_id):

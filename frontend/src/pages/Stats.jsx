@@ -23,12 +23,15 @@ function Sparkline({ data, label }) {
   const minT = Math.min(...times),  maxT = Math.max(...times)
 
   const rangeV = maxV - minV || 1
-  const rangeT = maxT - minT || 1
+  const rangeT = maxT - minT
 
-  const toX = ts  => ((ts - minT) / rangeT) * INNER_W
   const toY = val => INNER_H - ((val - minV) / rangeV) * INNER_H
 
-  const pts = data.map(d => ({ x: toX(d.ts), y: toY(d.value), ...d }))
+  const toX = rangeT === 0
+    ? (_, i) => (data.length === 1 ? 0 : (i / (data.length - 1)) * INNER_W)
+    : (ts) => ((ts - minT) / rangeT) * INNER_W
+
+  const pts = data.map((d, i) => ({ x: toX(d.ts, i), y: toY(d.value), ...d }))
   const polyline = pts.map(p => `${p.x},${p.y}`).join(' ')
 
   // area fill path
@@ -44,16 +47,14 @@ function Sparkline({ data, label }) {
   }))
 
   // x-axis ticks (first and last)
-  const xTicks = [data[0], data[data.length - 1]].map(d => ({
-    x: toX(d.ts),
-    label: new Date(d.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+  const xTicks = [0, data.length - 1].map(i => ({
+    x: pts[i].x,
+    label: new Date(data[i].ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
   }))
 
   const delta = values[values.length - 1] - values[0]
   const deltaColor = delta > 0 ? 'var(--accent)' : delta < 0 ? 'var(--danger)' : 'var(--text-muted)'
   const deltaStr = (delta > 0 ? '+' : '') + (Number.isInteger(delta) ? delta : delta.toFixed(1))
-
-  const latest = pts[pts.length - 1]
 
   function handleMouseMove(e) {
     const rect = svgRef.current.getBoundingClientRect()
@@ -107,18 +108,21 @@ function Sparkline({ data, label }) {
             points={polyline}
             fill="none"
             stroke="var(--accent)"
-            strokeWidth={1.5}
+            strokeWidth={2}
             strokeLinejoin="round"
             strokeLinecap="round"
           />
 
-          {/* latest dot */}
-          <circle cx={latest.x} cy={latest.y} r={3} fill="var(--accent)" />
-          <circle cx={latest.x} cy={latest.y} r={5} fill="none" stroke="var(--accent)" strokeWidth={1} opacity={0.4} />
+          {/* dots for each data point */}
+          {pts.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r={i === pts.length - 1 ? 3 : 2}
+              fill={i === pts.length - 1 ? 'var(--accent)' : 'var(--surface-2)'}
+              stroke="var(--accent)" strokeWidth={1.5} />
+          ))}
 
-          {/* tooltip dot */}
-          {tooltip && tooltip !== latest && (
-            <circle cx={tooltip.x} cy={tooltip.y} r={3} fill="var(--text-muted)" />
+          {/* tooltip ring */}
+          {tooltip && (
+            <circle cx={tooltip.x} cy={tooltip.y} r={5} fill="none" stroke="var(--accent)" strokeWidth={1.5} opacity={0.7} />
           )}
 
           {/* y-axis labels */}
@@ -182,12 +186,15 @@ function ExerciseSparkline({ data, label }) {
   const minV = Math.min(...values), maxV = Math.max(...values)
   const minT = Math.min(...times),  maxT = Math.max(...times)
   const rangeV = maxV - minV || 1
-  const rangeT = maxT - minT || 1
+  const rangeT = maxT - minT
 
-  const toX = ts  => ((ts - minT) / rangeT) * EINNER_W
   const toY = val => EINNER_H - ((val - minV) / rangeV) * EINNER_H
 
-  const pts = data.map(d => ({ x: toX(d.ts), y: toY(d.value), ...d }))
+  const toX = rangeT === 0
+    ? (_, i) => (data.length === 1 ? 0 : (i / (data.length - 1)) * EINNER_W)
+    : (ts) => ((ts - minT) / rangeT) * EINNER_W
+
+  const pts = data.map((d, i) => ({ x: toX(d.ts, i), y: toY(d.value), ...d }))
   const polyline = pts.map(p => `${p.x},${p.y}`).join(' ')
   const areaPath =
     `M${pts[0].x},${EINNER_H} ` +
@@ -198,9 +205,10 @@ function ExerciseSparkline({ data, label }) {
     v, y: toY(v),
     label: Number.isInteger(v) ? v : v.toFixed(1),
   }))
-  const xTicks = [data[0], data[Math.floor(data.length / 2)], data[data.length - 1]].map(d => ({
-    x: toX(d.ts),
-    label: new Date(d.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }),
+  const xTickIdxs = [0, Math.floor(data.length / 2), data.length - 1]
+  const xTicks = xTickIdxs.map(i => ({
+    x: pts[i].x,
+    label: new Date(data[i].ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }),
   }))
 
   const delta = values[values.length - 1] - values[0]
@@ -690,7 +698,7 @@ export default function Stats() {
 
   useEffect(() => {
     if (!user) return
-    fetch(`/api/profile/${user.user_id}/measurements`, { credentials: 'include' })
+    fetch(`/api/profile/${user.user_id}/measurements/history`, { credentials: 'include' })
       .then(r => r.json())
       .then(data => { if (data.status === 'ok') setMeasurements(data.measurements) })
     setGoalsLoading(true)
