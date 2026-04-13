@@ -1,5 +1,8 @@
 # SQLift (CS-5200 Project)
 
+- **Live App:** [https://cs-5200-project.vercel.app](https://cs-5200-project.vercel.app)
+- **GitHub Repository:** [https://github.com/btoneil2021/cs-5200-project](https://github.com/btoneil2021/cs-5200-project)
+
 This is a workout and achievement tracking application built with a Flask backend, a React/Vite frontend, and a PostgreSQL (Supabase) database.
 
 ## Technical Specifications

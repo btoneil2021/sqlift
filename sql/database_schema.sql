@@ -1,6 +1,3 @@
--- WARNING: This schema is for context only and is not meant to be run.
--- Table order and constraints may not be valid for execution.
-
 CREATE TABLE sqlift.achievement (
   achievement_id bigint NOT NULL DEFAULT nextval('sqlift.achievement_achievement_id_seq'::regclass),
   name text NOT NULL,
