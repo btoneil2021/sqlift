@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, session
-from api.utils import api_route, DB_SCHEMA
+from api.utils import api_route
 
 leaderboard_bp = Blueprint('leaderboard', __name__)
 
@@ -17,13 +17,22 @@ def get_leaderboard(conn):
     user_id, err = _require_user()
     if err:
         return err
-    with conn.cursor() as cur:
-        cur.execute(
-            f"SELECT {DB_SCHEMA}.fn_get_leaderboard(%s::bigint) AS leaderboard",
-            (user_id,)
-        )
-        row = cur.fetchone()
-    return jsonify(status="ok", leaderboard=row[0] if row else [])
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL get_leaderboard(%s)", (user_id,))
+        rows = cur.fetchall()
+    leaderboard = [
+        {
+            "user_id":      int(r["user_id"]),
+            "username":     r["username"],
+            "total_volume": float(r["total_volume"]),
+            "max_weight":   float(r["max_weight"]),
+            "sessions_done": int(r["sessions_done"]),
+            "rank":         int(r["rank"]),
+            "is_me":        bool(r["is_me"]),
+        }
+        for r in rows
+    ]
+    return jsonify(status="ok", leaderboard=leaderboard)
 
 
 @leaderboard_bp.route("/api/leaderboard/global")
@@ -32,10 +41,19 @@ def get_global_leaderboard(conn):
     user_id, err = _require_user()
     if err:
         return err
-    with conn.cursor() as cur:
-        cur.execute(
-            f"SELECT {DB_SCHEMA}.fn_get_global_leaderboard(%s::bigint) AS leaderboard",
-            (user_id,)
-        )
-        row = cur.fetchone()
-    return jsonify(status="ok", leaderboard=row[0] if row else [])
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL get_global_leaderboard(%s)", (user_id,))
+        rows = cur.fetchall()
+    leaderboard = [
+        {
+            "user_id":      int(r["user_id"]),
+            "username":     r["username"],
+            "total_volume": float(r["total_volume"]),
+            "max_weight":   float(r["max_weight"]),
+            "sessions_done": int(r["sessions_done"]),
+            "rank":         int(r["rank"]),
+            "is_me":        bool(r["is_me"]),
+        }
+        for r in rows
+    ]
+    return jsonify(status="ok", leaderboard=leaderboard)
