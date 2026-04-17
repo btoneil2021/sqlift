@@ -1,4 +1,4 @@
-SET search_path TO sqlift;
+USE sqlift;
 
 -- Seed canonical achievements (safe to re-run)
 INSERT INTO sqlift.achievement (name, description) VALUES
@@ -27,8 +27,7 @@ INSERT INTO sqlift.achievement (name, description) VALUES
   ('Tool Master',           'Use 10 different types of equipment'),
   -- Special / Milestone
   ('The Architect',         'Create 10 custom workout templates'),
-  ('Completionist',         'Complete every planned set in a full workout session')
-ON CONFLICT (name) DO NOTHING;
+  ('Completionist',         'Complete every planned set in a full workout session');
 
 
 -- Evaluates all achievement conditions for p_user_id, awards any newly earned ones
