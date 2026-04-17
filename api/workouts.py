@@ -1,8 +1,6 @@
-import json
 from flask import Blueprint, jsonify, request, session
-from psycopg.rows import dict_row
 
-from api.utils import api_route, DB_SCHEMA, db_error_message, serialize_row
+from api.utils import api_route, tbl, serialize_row
 
 workouts_bp = Blueprint('workouts', __name__)
 
@@ -15,18 +13,29 @@ def _require_user():
     return user_id, None
 
 
-# ── Reference data ────────────────────────────────────────────────────────────
+def _seconds_to_interval(seconds):
+    """Convert an integer number of seconds to an HH:MM:SS string."""
+    if seconds is None:
+        return None
+    seconds = int(seconds)
+    h = seconds // 3600
+    m = (seconds % 3600) // 60
+    s = seconds % 60
+    return f"{h:02d}:{m:02d}:{s:02d}"
 
-@workouts_bp.route("/api/workouts/new/reference-data")
-@api_route()
-def new_workout_reference_data(conn):
-    user_id, err = _require_user()
-    if err:
-        return err
-    with conn.cursor() as cur:
-        cur.execute(f"SELECT {DB_SCHEMA}.fn_get_new_workout_reference_data() AS data")
-        row = cur.fetchone()
-    return jsonify(status="ok", data=row[0])
+
+def _interval_to_seconds(interval_str):
+    """Convert an HH:MM:SS or MM:SS interval string to integer seconds."""
+    if interval_str is None:
+        return None
+    if isinstance(interval_str, (int, float)):
+        return int(interval_str)
+    parts = str(interval_str).strip().split(":")
+    if len(parts) == 3:
+        return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+    if len(parts) == 2:
+        return int(parts[0]) * 60 + int(parts[1])
+    return int(parts[0])
 
 
 # ── Exercise search ───────────────────────────────────────────────────────────
@@ -38,11 +47,8 @@ def search_exercises(conn):
     if err:
         return err
     q = request.args.get("q", "").strip() or None
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            f"SELECT * FROM {DB_SCHEMA}.fn_search_exercise_library(%s)",
-            (q,)
-        )
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL search_exercises(%s)", (q,))
         results = cur.fetchall()
     return jsonify(status="ok", results=results)
 
@@ -55,10 +61,10 @@ def get_exercise_library(conn):
     user_id, err = _require_user()
     if err:
         return err
-    with conn.cursor() as cur:
-        cur.execute(f"SELECT {DB_SCHEMA}.fn_get_exercise_library() AS exercises")
-        row = cur.fetchone()
-    return jsonify(status="ok", exercises=row[0] if row else [])
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL search_exercises(NULL)")
+        results = cur.fetchall()
+    return jsonify(status="ok", exercises=results)
 
 
 # ── Exercise detail ───────────────────────────────────────────────────────────
@@ -69,15 +75,15 @@ def get_exercise(conn, exercise_id):
     user_id, err = _require_user()
     if err:
         return err
-    with conn.cursor() as cur:
+    with conn.cursor(dictionary=True) as cur:
         cur.execute(
-            f"SELECT {DB_SCHEMA}.fn_get_exercise_by_id(%s::bigint) AS exercise",
-            (exercise_id,)
+            f"SELECT exercise_id, name AS exercise_name FROM {tbl('exercise')} WHERE exercise_id = %s",
+            (exercise_id,),
         )
-        row = cur.fetchone()
-    if not row or row[0] is None:
+        exercise = cur.fetchone()
+    if not exercise:
         return jsonify(status="error", message="Exercise not found."), 404
-    return jsonify(status="ok", exercise=row[0])
+    return jsonify(status="ok", exercise=exercise)
 
 
 # ── Workout list ─────────────────────────────────────────────────────────────
@@ -88,13 +94,19 @@ def list_workouts(conn):
     user_id, err = _require_user()
     if err:
         return err
-    with conn.cursor() as cur:
+    with conn.cursor(dictionary=True) as cur:
         cur.execute(
-            f"SELECT {DB_SCHEMA}.fn_list_user_workouts(%s::bigint) AS workouts",
-            (user_id,)
+            f"""
+            SELECT w.workout_id, w.name AS workout_name, w.preferred_day,
+                   get_primary_muscle_group_for_workout(w.workout_id) AS primary_muscle_group
+            FROM {tbl('workout')} w
+            WHERE w.user_id = %s
+            ORDER BY w.name ASC
+            """,
+            (user_id,),
         )
-        row = cur.fetchone()
-    return jsonify(status="ok", workouts=row[0] if row else [])
+        workouts = cur.fetchall()
+    return jsonify(status="ok", workouts=workouts)
 
 
 # ── Workout CRUD ──────────────────────────────────────────────────────────────
@@ -105,15 +117,38 @@ def get_workout(conn, workout_id):
     user_id, err = _require_user()
     if err:
         return err
-    with conn.cursor() as cur:
-        cur.execute(
-            f"SELECT {DB_SCHEMA}.fn_get_view_workout_payload(%s, %s) AS payload",
-            (user_id, workout_id)
-        )
-        row = cur.fetchone()
-    if not row or row[0] is None:
-        return jsonify(status="error", message="Workout not found."), 404
-    return jsonify(status="ok", workout=row[0])
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL get_workout(%s, %s)", (user_id, workout_id))
+        workout = cur.fetchone()
+        while cur.nextset():
+            pass
+
+        if not workout:
+            return jsonify(status="error", message="Workout not found."), 404
+
+        cur.execute("CALL get_workout_tags(%s, %s)", (user_id, workout_id))
+        tags = cur.fetchall()
+        while cur.nextset():
+            pass
+
+        cur.execute("CALL get_workout_exercises(%s, %s)", (user_id, workout_id))
+        exercises = cur.fetchall()
+        while cur.nextset():
+            pass
+
+        cur.execute("CALL get_workout_history(%s, %s)", (user_id, workout_id))
+        history = cur.fetchone()
+        while cur.nextset():
+            pass
+
+    # Convert expected_rest_time (seconds INT) to interval string for frontend
+    for ex in exercises:
+        ex["expected_rest_time"] = _seconds_to_interval(ex.get("expected_rest_time"))
+
+    workout["tags"] = tags
+    workout["exercises"] = [serialize_row(e) for e in exercises]
+    workout["history"] = serialize_row(history) if history else None
+    return jsonify(status="ok", workout=workout)
 
 
 @workouts_bp.route("/api/workouts", methods=["POST"])
@@ -124,24 +159,52 @@ def create_workout(conn):
         return err
     data = request.get_json(silent=True) or {}
     try:
-        with conn.cursor() as cur:
+        with conn.cursor(dictionary=True) as cur:
             cur.execute(
-                f"SELECT {DB_SCHEMA}.fn_create_workout_full(%s, %s, %s, %s::jsonb, %s::jsonb)",
-                (
-                    user_id,
-                    data.get("name"),
-                    data.get("preferred_day") or None,
-                    json.dumps(data.get("exercises", [])),
-                    json.dumps(data.get("tags", [])),
-                )
+                "CALL create_full_workout(%s, %s, %s)",
+                (user_id, data.get("name"), data.get("preferred_day") or None),
             )
-            workout_id = cur.fetchone()[0]
+            row = cur.fetchone()
+            workout_id = row["workout_id"] if row else None
+            while cur.nextset():
+                pass
+
+            exercises = data.get("exercises", [])
+            for idx, ex in enumerate(exercises, start=1):
+                cur.execute(
+                    "CALL create_workout_exercise(%s, %s, %s, %s, %s, %s, %s, %s)",
+                    (
+                        user_id,
+                        workout_id,
+                        ex.get("sort_order", idx),
+                        ex.get("exercise_id"),
+                        ex.get("target_sets"),
+                        ex.get("target_reps"),
+                        ex.get("target_weight"),
+                        _interval_to_seconds(ex.get("expected_rest_time")),
+                    ),
+                )
+                while cur.nextset():
+                    pass
+
+            tags = data.get("tags", [])
+            for tag in tags:
+                tag_name = tag if isinstance(tag, str) else tag.get("name")
+                if tag_name:
+                    cur.execute(
+                        "CALL add_workout_tag(%s, %s, %s)",
+                        (user_id, workout_id, tag_name),
+                    )
+                    while cur.nextset():
+                        pass
+
             conn.commit()
     except Exception as exc:
         conn.rollback()
-        if "already exists" in str(exc).lower():
+        msg = str(exc).lower()
+        if "already exists" in msg:
             return jsonify(status="error", message="A workout with that name already exists."), 409
-        return jsonify(status="error", message=db_error_message(exc)), 400
+        return jsonify(status="error", message=str(exc)), 400
     return jsonify(status="ok", workout_id=workout_id), 201
 
 
@@ -153,22 +216,58 @@ def update_workout(conn, workout_id):
         return err
     data = request.get_json(silent=True) or {}
     try:
-        with conn.cursor() as cur:
+        with conn.cursor(dictionary=True) as cur:
+            # Clear existing exercises and tags first
+            cur.execute("CALL delete_workout_exercise(%s, %s)", (user_id, workout_id))
+            while cur.nextset():
+                pass
+            cur.execute("CALL delete_workout_tags_assignment(%s, %s)", (user_id, workout_id))
+            while cur.nextset():
+                pass
+
+            # Update workout header
             cur.execute(
-                f"SELECT {DB_SCHEMA}.fn_update_workout_full(%s, %s, %s, %s, %s::jsonb, %s::jsonb)",
-                (
-                    user_id,
-                    workout_id,
-                    data.get("name"),
-                    data.get("preferred_day") or None,
-                    json.dumps(data.get("exercises", [])),
-                    json.dumps(data.get("tags", [])),
-                )
+                "CALL update_workout(%s, %s, %s, %s)",
+                (user_id, workout_id, data.get("name"), data.get("preferred_day") or None),
             )
+            while cur.nextset():
+                pass
+
+            # Re-add exercises
+            exercises = data.get("exercises", [])
+            for idx, ex in enumerate(exercises, start=1):
+                cur.execute(
+                    "CALL create_workout_exercise(%s, %s, %s, %s, %s, %s, %s, %s)",
+                    (
+                        user_id,
+                        workout_id,
+                        ex.get("sort_order", idx),
+                        ex.get("exercise_id"),
+                        ex.get("target_sets"),
+                        ex.get("target_reps"),
+                        ex.get("target_weight"),
+                        _interval_to_seconds(ex.get("expected_rest_time")),
+                    ),
+                )
+                while cur.nextset():
+                    pass
+
+            # Re-add tags
+            tags = data.get("tags", [])
+            for tag in tags:
+                tag_name = tag if isinstance(tag, str) else tag.get("name")
+                if tag_name:
+                    cur.execute(
+                        "CALL add_workout_tag(%s, %s, %s)",
+                        (user_id, workout_id, tag_name),
+                    )
+                    while cur.nextset():
+                        pass
+
             conn.commit()
     except Exception as exc:
         conn.rollback()
-        return jsonify(status="error", message=db_error_message(exc)), 400
+        return jsonify(status="error", message=str(exc)), 400
     return jsonify(status="ok", workout_id=workout_id)
 
 
@@ -179,20 +278,18 @@ def delete_workout(conn, workout_id):
     if err:
         return err
     try:
-        with conn.cursor() as cur:
-            cur.execute(
-                f"SELECT {DB_SCHEMA}.fn_delete_workout(%s, %s)",
-                (user_id, workout_id)
-            )
+        with conn.cursor(dictionary=True) as cur:
+            cur.execute("CALL delete_workout(%s, %s)", (user_id, workout_id))
             conn.commit()
     except Exception as exc:
         conn.rollback()
-        if "in-progress session" in str(exc).lower() or "in progress" in str(exc).lower():
+        msg = str(exc).lower()
+        if "in-progress session" in msg or "in progress" in msg:
             return jsonify(
                 status="error",
-                message="Cannot delete a workout with an active in-progress session."
+                message="Cannot delete a workout with an active in-progress session.",
             ), 409
-        return jsonify(status="error", message=db_error_message(exc)), 400
+        return jsonify(status="error", message=str(exc)), 400
     return jsonify(status="ok")
 
 
@@ -205,16 +302,16 @@ def start_session(conn, workout_id):
     if err:
         return err
     try:
-        with conn.cursor() as cur:
-            cur.execute(
-                f"SELECT {DB_SCHEMA}.fn_start_workout_session(%s, %s)",
-                (user_id, workout_id)
-            )
-            workout_session_id = cur.fetchone()[0]
+        with conn.cursor(dictionary=True) as cur:
+            cur.execute("CALL start_workout_session(%s, %s)", (user_id, workout_id))
+            row = cur.fetchone()
+            while cur.nextset():
+                pass
+            workout_session_id = row["workout_session_id"] if row else None
             conn.commit()
     except Exception as exc:
         conn.rollback()
-        return jsonify(status="error", message=db_error_message(exc)), 400
+        return jsonify(status="error", message=str(exc)), 400
     return jsonify(status="ok", workout_session_id=workout_session_id), 201
 
 
@@ -224,11 +321,8 @@ def list_sessions(conn, workout_id):
     user_id, err = _require_user()
     if err:
         return err
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            f"SELECT * FROM {DB_SCHEMA}.fn_list_workout_sessions(%s, %s)",
-            (user_id, workout_id)
-        )
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL list_workout_sessions(%s, %s)", (user_id, workout_id))
         rows = cur.fetchall()
     return jsonify(status="ok", sessions=[serialize_row(r) for r in rows])
 
@@ -239,10 +333,9 @@ def get_in_progress_session(conn, workout_id):
     user_id, err = _require_user()
     if err:
         return err
-    with conn.cursor(row_factory=dict_row) as cur:
+    with conn.cursor(dictionary=True) as cur:
         cur.execute(
-            f"SELECT * FROM {DB_SCHEMA}.fn_get_in_progress_session_for_workout(%s, %s)",
-            (user_id, workout_id)
+            "CALL get_in_progress_workout_session(%s, %s)", (user_id, workout_id)
         )
         row = cur.fetchone()
     if not row:

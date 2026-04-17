@@ -12,8 +12,8 @@ BEGIN
 
     SELECT ws.completion_status
     INTO v_status
-    FROM workout_session ws
-    INNER JOIN workout w
+    FROM workout_session AS ws
+    INNER JOIN workout AS w
         ON w.workout_id = ws.workout_id
     WHERE ws.workout_session_id = p_workout_session_id
 		AND w.user_id = p_user_id
@@ -25,7 +25,7 @@ DELIMITER ;
 
 DROP PROCEDURE IF EXISTS get_in_progress_workout_session;
 DELIMITER $$
-CREATE PROCEDURE get_in_progress_session_for_workout(
+CREATE PROCEDURE get_in_progress_workout_session(
     p_user_id BIGINT,
     p_workout_id BIGINT
 )
@@ -34,8 +34,8 @@ BEGIN
         ws.start_date_time,
         ws.end_date_time,
         ws.completion_status
-    FROM workout_session ws
-    INNER JOIN workout w
+    FROM workout_session AS ws
+    INNER JOIN workout AS w
         ON w.workout_id = ws.workout_id
     WHERE w.user_id = p_user_id
 		AND w.workout_id = p_workout_id
@@ -62,8 +62,8 @@ BEGIN
         ws.difficulty_rating,
         ws.enjoyment_rating,
         ws.energy_level_rating
-    FROM workout_session ws
-    INNER JOIN workout w
+    FROM workout_session AS ws
+    INNER JOIN workout AS w
         ON w.workout_id = ws.workout_id
     WHERE ws.workout_session_id = p_workout_session_id
 		AND w.user_id = p_user_id;
@@ -82,10 +82,10 @@ BEGIN
         ws.completion_status,
         ws.notes,
         COUNT(rl.record_log_id) AS exercise_count
-    FROM workout_session ws
-    INNER JOIN workout w
+    FROM workout_session AS ws
+    INNER JOIN workout AS w
         ON w.workout_id = ws.workout_id
-    LEFT JOIN record_log rl
+    LEFT JOIN record_log AS rl
         ON rl.workout_session_id = ws.workout_session_id
     WHERE w.user_id = p_user_id
 		AND ws.workout_id = p_workout_id
@@ -113,14 +113,14 @@ BEGIN
         rl.timestamp,
         rl.duration,
         COUNT(sl.set_log_id) AS set_count
-    FROM record_log rl
+    FROM record_log AS rl
     INNER JOIN workout_session ws
         ON ws.workout_session_id = rl.workout_session_id
-    INNER JOIN workout w
+    INNER JOIN workout AS w
         ON w.workout_id = ws.workout_id
-    LEFT JOIN exercise e
+    LEFT JOIN exercise AS e
         ON e.exercise_id = rl.exercise_id
-    LEFT JOIN set_log sl
+    LEFT JOIN set_log AS sl
         ON sl.record_log_id = rl.record_log_id
     WHERE w.user_id = p_user_id
 		AND ws.workout_session_id = p_workout_session_id
@@ -150,12 +150,12 @@ BEGIN
         sl.reps,
         sl.rpe,
         sl.rest_time
-    FROM set_log sl
-    INNER JOIN record_log rl
+    FROM set_log AS sl
+    INNER JOIN record_log AS rl
         ON rl.record_log_id = sl.record_log_id
-    INNER JOIN workout_session ws
+    INNER JOIN workout_session AS ws
         ON ws.workout_session_id = rl.workout_session_id
-    INNER JOIN workout w
+    INNER JOIN workout AS w
         ON w.workout_id = ws.workout_id
     WHERE w.user_id = p_user_id
 		AND rl.record_log_id = p_record_log_id
@@ -174,7 +174,7 @@ BEGIN
 
     IF NOT EXISTS (
         SELECT 1
-        FROM workout w
+        FROM workout AS w
         WHERE w.workout_id = p_workout_id
 			AND w.user_id = p_user_id
     ) THEN
@@ -184,8 +184,8 @@ BEGIN
 
     SELECT ws.workout_session_id
     INTO v_session_id
-    FROM workout_session ws
-    INNER JOIN workout w
+    FROM workout_session AS ws
+    INNER JOIN workout AS w
         ON w.workout_id = ws.workout_id
     WHERE w.user_id = p_user_id
 		AND w.workout_id = p_workout_id
@@ -205,6 +205,8 @@ BEGIN
             'In Progress'
         );
     END IF;
+
+    SELECT COALESCE(v_session_id, LAST_INSERT_ID()) AS workout_session_id;
 END $$
 DELIMITER ;
 
@@ -269,7 +271,7 @@ BEGIN
         ws.difficulty_rating,
         ws.enjoyment_rating,
         ws.energy_level_rating
-    FROM workout_session ws
+    FROM workout_session AS ws
     WHERE ws.workout_session_id = p_workout_session_id;
 END $$
 DELIMITER ;
@@ -300,7 +302,7 @@ BEGIN
 
     IF NOT EXISTS (
         SELECT 1
-        FROM exercise e
+        FROM exercise AS e
         WHERE e.exercise_id = p_exercise_id
     ) THEN
         SIGNAL SQLSTATE '45000'
@@ -309,7 +311,7 @@ BEGIN
 
     SELECT COALESCE(MAX(rl.number), 0) + 1
     INTO v_next_number
-    FROM record_log rl
+    FROM record_log AS rl
     WHERE rl.workout_session_id = p_workout_session_id;
 
     INSERT INTO record_log (
@@ -324,6 +326,8 @@ BEGIN
         v_next_number,
         NOW()
     );
+
+    SELECT LAST_INSERT_ID() AS record_log_id, v_next_number AS assigned_number;
 END $$
 DELIMITER ;
 
@@ -345,10 +349,10 @@ BEGIN
 
     SELECT ws.completion_status
     INTO v_status
-    FROM workout_session ws
-    INNER JOIN record_log rl
+    FROM workout_session AS ws
+    INNER JOIN record_log AS rl
         ON rl.workout_session_id = ws.workout_session_id
-    INNER JOIN workout w
+    INNER JOIN workout AS w
         ON w.workout_id = ws.workout_id
     WHERE rl.record_log_id = p_record_log_id
 		AND w.user_id = p_user_id
@@ -386,7 +390,7 @@ BEGIN
 
     SELECT COALESCE(MAX(sl.number), 0) + 1
     INTO v_next_number
-    FROM set_log sl
+    FROM set_log AS sl
     WHERE sl.record_log_id = p_record_log_id;
 
     INSERT INTO set_log (
@@ -407,6 +411,8 @@ BEGIN
         p_rpe,
         p_rest_time
     );
+
+    SELECT LAST_INSERT_ID() AS set_log_id, v_next_number AS assigned_number;
 END $$
 DELIMITER ;
 
@@ -426,12 +432,12 @@ BEGIN
 
     SELECT ws.completion_status
     INTO v_status
-    FROM workout_session ws
-    INNER JOIN record_log rl
+    FROM workout_session AS ws
+    INNER JOIN record_log AS rl
         ON rl.workout_session_id = ws.workout_session_id
-    INNER JOIN set_log sl
+    INNER JOIN set_log AS sl
         ON sl.record_log_id = rl.record_log_id
-    INNER JOIN workout w
+    INNER JOIN workout AS w
         ON w.workout_id = ws.workout_id
     WHERE sl.set_log_id = p_set_log_id
 		AND w.user_id = p_user_id
@@ -439,32 +445,36 @@ BEGIN
 
     IF v_status IS NULL THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Set log not found for this user';
+        SET MESSAGE_TEXT = 'Set log not found for this user';
     END IF;
 
     IF v_status <> 'In Progress' THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Cannot update a set in a session that is not In Progress';
+        SET MESSAGE_TEXT = 'Cannot update a set in a session that is not In Progress';
     END IF;
 
-    IF p_rpe IS NOT NULL AND (p_rpe < 0 OR p_rpe > 10) THEN
+    IF p_rpe IS NOT NULL 
+        AND (p_rpe < 0 OR p_rpe > 10) THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'RPE must be between 0 and 10';
+        SET MESSAGE_TEXT = 'RPE must be between 0 and 10';
     END IF;
 
-    IF p_weight IS NOT NULL AND p_weight < 0 THEN
+    IF p_weight IS NOT NULL 
+        AND p_weight < 0 THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Weight cannot be negative';
+        SET MESSAGE_TEXT = 'Weight cannot be negative';
     END IF;
 
-    IF p_reps IS NOT NULL AND p_reps <= 0 THEN
+    IF p_reps IS NOT NULL 
+        AND p_reps <= 0 THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Reps must be greater than 0';
+        SET MESSAGE_TEXT = 'Reps must be greater than 0';
     END IF;
 
-    IF p_rest_time IS NOT NULL AND p_rest_time < 0 THEN
+    IF p_rest_time IS NOT NULL 
+        AND p_rest_time < 0 THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Rest time cannot be negative';
+        SET MESSAGE_TEXT = 'Rest time cannot be negative';
     END IF;
 
     UPDATE set_log
@@ -496,10 +506,10 @@ BEGIN
         v_workout_session_id,
         v_old_number,
         v_status
-    FROM record_log rl
-    INNER JOIN workout_session ws
+    FROM record_log AS rl
+    INNER JOIN workout_session AS ws
         ON ws.workout_session_id = rl.workout_session_id
-    INNER JOIN workout w
+    INNER JOIN workout AS w
         ON w.workout_id = ws.workout_id
     WHERE rl.record_log_id = p_record_log_id
       AND w.user_id = p_user_id
@@ -507,12 +517,12 @@ BEGIN
 
     IF v_workout_session_id IS NULL THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Record log not found for this user';
+        SET MESSAGE_TEXT = 'Record log not found for this user';
     END IF;
 
     IF v_status <> 'In Progress' THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Cannot delete a record log from a session that is not In Progress';
+        SET MESSAGE_TEXT = 'Cannot delete a record log from a session that is not In Progress';
     END IF;
 
     DELETE FROM record_log
@@ -546,12 +556,12 @@ BEGIN
         v_record_log_id,
         v_old_number,
         v_status
-    FROM set_log sl
-    INNER JOIN record_log rl
+    FROM set_log AS sl
+    INNER JOIN record_log AS rl
         ON rl.record_log_id = sl.record_log_id
-    INNER JOIN workout_session ws
+    INNER JOIN workout_session AS ws
         ON ws.workout_session_id = rl.workout_session_id
-    INNER JOIN workout w
+    INNER JOIN workout AS w
         ON w.workout_id = ws.workout_id
     WHERE sl.set_log_id = p_set_log_id
 		AND w.user_id = p_user_id
@@ -559,12 +569,12 @@ BEGIN
 
     IF v_status IS NULL THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Set log not found for this user';
+        SET MESSAGE_TEXT = 'Set log not found for this user';
     END IF;
 
     IF v_status <> 'In Progress' THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Cannot delete a set from a session that is not In Progress';
+        SET MESSAGE_TEXT = 'Cannot delete a set from a session that is not In Progress';
     END IF;
 
     DELETE FROM set_log

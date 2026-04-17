@@ -6,15 +6,15 @@ DELIMITER $$
 CREATE FUNCTION get_primary_muscle_group_for_workout(
     p_workout_id BIGINT
 )
-RETURNS VARCHAR(255) DETERMINISTIC
+RETURNS VARCHAR(255) READS SQL DATA
 BEGIN
 	DECLARE primary_muscle_group_name VARCHAR(255);
     
     SELECT mg.name INTO primary_muscle_group_name
-    FROM workout_exercise we
-    INNER JOIN exercise_muscle_group emg
+    FROM workout_exercise AS we
+    INNER JOIN exercise_muscle_group AS emg
         ON emg.exercise_id = we.exercise_id
-    INNER JOIN muscle_group mg
+    INNER JOIN muscle_group AS mg
         ON mg.muscle_id = emg.muscle_id
     WHERE we.workout_id = p_workout_id
         AND emg.role = 'Primary'
@@ -36,10 +36,10 @@ BEGIN
     SELECT 
         e.exercise_id, 
         e.name AS exercise_name
-    FROM exercise e
+    FROM exercise AS e
     WHERE p_search_text IS NULL
         OR TRIM(p_search_text) = ''
-        OR LOWER(exercise_name) LIKE CONCAT('%', LOWER(TRIM(p_search_text)), '%')
+        OR LOWER(e.name) LIKE CONCAT('%', LOWER(TRIM(p_search_text)), '%')
     ORDER BY e.name ASC;
 END $$
 DELIMITER ;
@@ -57,7 +57,7 @@ BEGIN
         w.name AS workout_name,
         w.preferred_day,
         get_primary_muscle_group_for_workout(w.workout_id) AS primary_muscle_group
-    FROM workout w
+    FROM workout AS w
     WHERE w.user_id = p_user_id
         AND w.workout_id = p_workout_id;
 END $$
@@ -74,10 +74,10 @@ BEGIN
     SELECT
         wt.name AS tag_name,
         wt.color_code AS color_code
-    FROM workout_tag wt
-    INNER JOIN workout_tag_assignment wta
+    FROM workout_tag AS wt
+    INNER JOIN workout_tag_assignment AS wta
         ON wta.tag_name = wt.name
-    INNER JOIN workout w
+    INNER JOIN workout AS w
         ON wta.workout_id = w.workout_id
     WHERE w.user_id = p_user_id
         AND w.workout_id = p_workout_id
@@ -101,10 +101,10 @@ BEGIN
         we.target_reps,
         we.target_weight,
         we.expected_rest_time
-    FROM workout_exercise we
-    INNER JOIN workout w
+    FROM workout_exercise AS we
+    INNER JOIN workout AS w
         ON w.workout_id = we.workout_id
-    INNER JOIN exercise e
+    INNER JOIN exercise AS e
         ON e.exercise_id = we.exercise_id
     WHERE w.user_id = p_user_id
         AND w.workout_id = p_workout_id
@@ -121,12 +121,12 @@ CREATE PROCEDURE get_workout_history(
 )
 BEGIN
     SELECT
-        COALESCE(v.total_sessions, 0) AS total_sessions,
-        COALESCE(v.completed_sessions, 0) AS completed_sessions,
-        COALESCE(v.in_progress_sessions, 0) AS in_progress_sessions,
-        COALESCE(v.abandoned_sessions, 0) AS abandoned_sessions,
-        v.last_started_at,
-        v.last_completed_at,
+        COALESCE(wsd.total_sessions, 0) AS total_sessions,
+        COALESCE(wsd.completed_sessions, 0) AS completed_sessions,
+        COALESCE(wsd.in_progress_sessions, 0) AS in_progress_sessions,
+        COALESCE(wsd.abandoned_sessions, 0) AS abandoned_sessions,
+        wsd.last_started_at,
+        wsd.last_completed_at,
         ROUND(AVG(ws.difficulty_rating), 1) AS average_difficulty,
         ROUND(AVG(ws.enjoyment_rating), 1) AS average_enjoyment,
         ROUND(AVG(ws.energy_level_rating), 1) AS average_energy_level
@@ -137,7 +137,7 @@ BEGIN
             SUM(
 				CASE
 					WHEN ws.completion_status = 'Completed'
-						AND (ws.notes IS NULL OR ws.notes <> 'Abandoned')
+					    AND (ws.notes IS NULL OR ws.notes <> 'Abandoned')
 						THEN 1 
                     ELSE 0
 				END
@@ -165,24 +165,24 @@ BEGIN
 					ELSE 0
 				END
 			) AS abandoned_sessions
-		FROM workout w
-		LEFT JOIN workout_session ws
+		FROM workout AS w
+		LEFT JOIN workout_session AS ws
 			ON w.workout_id = ws.workout_id
 		GROUP BY w.workout_id
     ) wsd
-    LEFT JOIN workout wsd
+    LEFT JOIN workout AS w
         ON w.workout_id = wsd.workout_id
-    LEFT JOIN workout_session ws
+    LEFT JOIN workout_session AS ws
         ON ws.workout_id = w.workout_id
     WHERE w.user_id = p_user_id
         AND w.workout_id = p_workout_id
     GROUP BY
-        v.total_sessions,
-        v.completed_sessions,
-        v.in_progress_sessions,
-        v.abandoned_sessions,
-        v.last_started_at,
-        v.last_completed_at;
+        wsd.total_sessions,
+        wsd.completed_sessions,
+        wsd.in_progress_sessions,
+        wsd.abandoned_sessions,
+        wsd.last_started_at,
+        wsd.last_completed_at;
 END $$
 DELIMITER ;
 
@@ -194,8 +194,6 @@ CREATE PROCEDURE create_full_workout(
     p_preferred_day TEXT
 )
 BEGIN
-	DECLARE return_workout_id BIGINT;
-    
     IF p_name IS NULL OR TRIM(p_name) = '' THEN
 		SIGNAL SQLSTATE '45000'
 		SET MESSAGE_TEXT = 'Workout name is required';
@@ -203,7 +201,7 @@ BEGIN
 
     IF NOT EXISTS (
         SELECT 1
-        FROM user u
+        FROM user AS u
         WHERE u.user_id = p_user_id
     ) THEN
 		SIGNAL SQLSTATE '45000'
@@ -212,9 +210,9 @@ BEGIN
 
     IF EXISTS (
         SELECT 1
-        FROM workout w
+        FROM workout AS w
         WHERE w.user_id = p_user_id
-            AND w.name = btrim(p_name)
+            AND w.name = TRIM(p_name)
     ) THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Workout name already exists for this user';
@@ -222,7 +220,9 @@ BEGIN
 
     -- Create the new workout
     INSERT INTO workout (user_id, name, preferred_day)
-    VALUES (p_user_id, btrim(p_name), NULLIF(TRIM(p_preferred_day), ''));
+    VALUES (p_user_id, TRIM(p_name), NULLIF(TRIM(p_preferred_day), ''));
+
+    SELECT LAST_INSERT_ID() AS workout_id;
 END $$
 DELIMITER ;
 
@@ -241,7 +241,7 @@ CREATE PROCEDURE create_workout_exercise(
 BEGIN
 	IF NOT EXISTS (
 		SELECT 1
-        FROM workout
+        FROM workout AS w
         WHERE w.workout_id = p_workout_id
 			AND w.user_id = p_user_id
 	) THEN
@@ -251,36 +251,40 @@ BEGIN
     
     IF NOT EXISTS (
         SELECT 1
-        FROM exercise e
+        FROM exercise AS e
         WHERE e.exercise_id = p_exercise_id
     ) THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Exercise does not exist';
     END IF;
 
-    IF (p_sort_order IS NULL OR p_sort_order <= 0) THEN
+    IF p_sort_order IS NULL 
+        OR p_sort_order <= 0 THEN
         SIGNAL SQLSTATE '45000'
-		SET MESSAGE_TEXT = 'Sort order must be greater than 0';
+		SET MESSAGE_TEXT = 'Sort order must be a number greater than 0';
     END IF;
 
-    IF (p_target_sets IS NOT NULL AND p_target_sets <= 0) THEN
+    IF p_target_sets IS NOT NULL 
+        AND p_target_sets <= 0 THEN
         SIGNAL SQLSTATE '45000'
-		SET MESSAGE_TEXT = 'Target sets must be greater than 0';
+		SET MESSAGE_TEXT = 'Target sets must be a number greater than 0';
     END IF;
 
-    IF (p_target_reps IS NOT NULL AND p_target_reps <= 0) THEN
+    IF p_target_reps IS NOT NULL 
+        AND p_target_reps <= 0 THEN
         SIGNAL SQLSTATE '45000'
-		SET MESSAGE_TEXT = 'Target reps must be greater than 0';
+		SET MESSAGE_TEXT = 'Target reps must be a number greater than 0';
     END IF;
 
-    IF (p_target_weight IS NOT NULL AND p_target_weight < 0) THEN
+    IF p_target_weight IS NOT NULL 
+        AND p_target_weight < 0 THEN
         SIGNAL SQLSTATE '45000'
-		SET MESSAGE_TEXT = 'Target weight cannot be negative';
+		SET MESSAGE_TEXT = 'Target weight cannot be negative or null';
     END IF;
     
     IF EXISTS (
         SELECT 1
-        FROM workout_exercise we
+        FROM workout_exercise AS we
         WHERE we.workout_id = p_workout_id
 			AND we.sort_order = p_sort_order
     ) THEN
@@ -318,28 +322,29 @@ CREATE PROCEDURE add_workout_tag(
     p_tag_name VARCHAR(255)
 )
 BEGIN
-	IF p_tag_name IS NULL OR TRIM(p_tag_name) = '' THEN
+	IF p_tag_name IS NULL 
+        OR TRIM(p_tag_name) = '' THEN
         SIGNAL SQLSTATE '45000'
 		SET MESSAGE_TEXT = 'Tag name is required';
     END IF;
 
     IF NOT EXISTS (
         SELECT 1
-        FROM workout w
+        FROM workout AS w
         WHERE w.workout_id = p_workout_id
           AND w.user_id = p_user_id
     ) THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Workout not found for this user';
+        SET MESSAGE_TEXT = 'Workout not found for this user';
     END IF;
 
     IF NOT EXISTS (
         SELECT 1
-        FROM workout_tag wt
+        FROM workout_tag AS wt
         WHERE wt.name = TRIM(p_tag_name)
     ) THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Tag name does not exist';
+        SET MESSAGE_TEXT = 'Tag name does not exist';
     END IF;
 
     -- Insert new workout_tag_assignment rows
@@ -364,7 +369,7 @@ BEGIN
 
     IF NOT EXISTS (
         SELECT 1
-        FROM workout w
+        FROM workout AS w
         WHERE w.workout_id = p_workout_id
 			AND w.user_id = p_user_id
     ) THEN
@@ -374,7 +379,7 @@ BEGIN
 
     IF EXISTS (
         SELECT 1
-        FROM workout w
+        FROM workout AS w
         WHERE w.user_id = p_user_id
 			AND w.name = TRIM(p_name)
 			AND w.workout_id <> p_workout_id
@@ -401,7 +406,7 @@ CREATE PROCEDURE delete_workout(
 BEGIN
     IF NOT EXISTS (
         SELECT 1
-        FROM workout w
+        FROM workout AS w
         WHERE w.workout_id = p_workout_id
 			AND w.user_id = p_user_id
     ) THEN
@@ -411,8 +416,8 @@ BEGIN
 
     IF EXISTS (
         SELECT 1
-        FROM workout_session ws
-        INNER JOIN workout w
+        FROM workout_session AS ws
+        INNER JOIN workout AS w
             ON w.workout_id = ws.workout_id
         WHERE w.user_id = p_user_id
 			AND w.workout_id = p_workout_id
@@ -437,7 +442,7 @@ CREATE PROCEDURE delete_workout_exercise(
 BEGIN
     IF NOT EXISTS (
         SELECT 1
-        FROM workout w
+        FROM workout AS w
         WHERE w.workout_id = p_workout_id
 			AND w.user_id = p_user_id
     ) THEN
@@ -459,7 +464,7 @@ CREATE PROCEDURE delete_workout_tags_assignment(
 BEGIN
     IF NOT EXISTS (
         SELECT 1
-        FROM workout w
+        FROM workout AS w
         WHERE w.workout_id = p_workout_id
 			AND w.user_id = p_user_id
     ) THEN
