@@ -1,5 +1,4 @@
 from flask import Blueprint, jsonify, request, session
-from psycopg.rows import dict_row
 import bcrypt
 
 from api.utils import api_route, tbl
@@ -20,11 +19,8 @@ def login(conn):
     if not identifier or not password:
         return jsonify(status="error", message="Username or email, and password are required."), 400
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            "SELECT * FROM sqlift.get_user_for_login(%s)",
-            (identifier,),
-        )
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL get_user_for_login(%s)", (identifier,))
         user = cur.fetchone()
 
     if user is None:
@@ -47,12 +43,12 @@ def signup(conn):
     if not data:
         return jsonify(status="error", message="Request body must be JSON."), 400
 
-    username = data.get("username", "").strip()
-    email = data.get("email", "").strip()
-    password = data.get("password", "")
+    username   = data.get("username", "").strip()
+    email      = data.get("email", "").strip()
+    password   = data.get("password", "")
     first_name = data.get("first_name", "").strip()
-    last_name = data.get("last_name", "").strip()
-    phone_num = data.get("phone_num", "").strip()
+    last_name  = data.get("last_name", "").strip()
+    phone_num  = data.get("phone_num", "").strip()
 
     if not all([username, email, password, first_name, last_name, phone_num]):
         return jsonify(status="error", message="username, email, password, first_name, last_name, and phone_num are required."), 400
@@ -62,10 +58,10 @@ def signup(conn):
 
     password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
-    with conn.cursor(row_factory=dict_row) as cur:
+    with conn.cursor(dictionary=True) as cur:
         try:
             cur.execute(
-                "SELECT * FROM sqlift.signup_user(%s, %s, %s, %s, %s, %s)",
+                "CALL signup_user(%s, %s, %s, %s, %s, %s)",
                 (username, email, password_hash, first_name, last_name, phone_num),
             )
             user = cur.fetchone()
@@ -73,13 +69,16 @@ def signup(conn):
         except Exception as exc:
             conn.rollback()
             msg = str(exc)
-            if "unique" in msg.lower() and "username" in msg.lower():
+            if "Duplicate entry" in msg and "username" in msg:
                 return jsonify(status="error", message="Username already taken."), 409
-            if "unique" in msg.lower() and "email" in msg.lower():
+            if "Duplicate entry" in msg and "email" in msg:
                 return jsonify(status="error", message="An account with that email already exists."), 409
-            if "unique" in msg.lower() and "phone_num" in msg.lower():
+            if "Duplicate entry" in msg and "phone_num" in msg:
                 return jsonify(status="error", message="That phone number is already in use."), 409
             raise
+
+    if user is None:
+        return jsonify(status="error", message="Signup failed."), 500
 
     session["user_id"] = user["user_id"]
     return jsonify(status="ok", user=user), 201
@@ -98,7 +97,7 @@ def me(conn):
     if not user_id:
         return jsonify(status="error", message="Not authenticated."), 401
 
-    with conn.cursor(row_factory=dict_row) as cur:
+    with conn.cursor(dictionary=True) as cur:
         cur.execute(
             f"""
             SELECT user_id, username, first_name, last_name,
@@ -120,7 +119,8 @@ def me(conn):
 @auth_bp.route("/api/auth/username-available/<username>", methods=["GET"])
 @api_route(limit="60 per minute")
 def username_available(conn, username):
-    with conn.cursor() as cur:
-        cur.execute("SELECT sqlift.is_username_available(%s)", (username,))
-        available = cur.fetchone()[0]
-    return jsonify(status="ok", available=available)
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL is_username_available(%s)", (username,))
+        row = cur.fetchone()
+    available = row["is_available"] if row else False
+    return jsonify(status="ok", available=bool(available))
