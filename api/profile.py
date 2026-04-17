@@ -1,5 +1,4 @@
 from flask import Blueprint, jsonify, request, session
-from psycopg.rows import dict_row
 import bcrypt
 
 from api.utils import api_route, serialize_row
@@ -13,11 +12,8 @@ def get_profile(conn, user_id):
     if session.get("user_id") != user_id:
         return jsonify(status="error", message="Not authorized."), 403
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            "SELECT * FROM sqlift.get_user_profile(%s)",
-            (user_id,),
-        )
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL get_user_profile(%s)", (user_id,))
         user = cur.fetchone()
 
     if user is None:
@@ -47,14 +43,10 @@ def update_profile(conn, user_id):
     if not updates:
         return jsonify(status="error", message="No valid fields provided."), 400
 
-    with conn.cursor(row_factory=dict_row) as cur:
+    with conn.cursor(dictionary=True) as cur:
         try:
             cur.execute(
-                """
-                SELECT * FROM sqlift.update_user_profile(
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s
-                )
-                """,
+                "CALL update_user_profile(%s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 (
                     user_id,
                     updates.get("username"),
@@ -64,7 +56,7 @@ def update_profile(conn, user_id):
                     updates.get("sex"),
                     updates.get("email"),
                     updates.get("phone_num"),
-                    updates.get("profile_pic_url")
+                    updates.get("profile_pic_url"),
                 ),
             )
             updated = cur.fetchone()
@@ -95,7 +87,7 @@ def change_password(conn, user_id):
         return jsonify(status="error", message="Request body must be JSON."), 400
 
     current_pw = data.get("current_password", "")
-    new_pw = data.get("new_password", "")
+    new_pw     = data.get("new_password", "")
 
     if not current_pw or not new_pw:
         return jsonify(status="error", message="current_password and new_password are required."), 400
@@ -103,8 +95,8 @@ def change_password(conn, user_id):
     if len(new_pw) < 6:
         return jsonify(status="error", message="New password must be at least 6 characters."), 400
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT * FROM sqlift.get_user_password_hash(%s)", (user_id,))
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL get_user_password_hash(%s)", (user_id,))
         row = cur.fetchone()
 
         if row is None:
@@ -115,11 +107,10 @@ def change_password(conn, user_id):
             return jsonify(status="error", message="Current password is incorrect."), 401
 
         new_hash = bcrypt.hashpw(new_pw.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-        cur.execute("SELECT sqlift.change_user_password(%s, %s)", (user_id, new_hash))
+        cur.execute("CALL change_user_password(%s, %s)", (user_id, new_hash))
         conn.commit()
 
     return jsonify(status="ok", message="Password updated successfully.")
-
 
 
 @profile_bp.route("/api/profile/<int:user_id>/measurements", methods=["GET"])
@@ -128,8 +119,8 @@ def get_measurements(conn, user_id):
     if session.get("user_id") != user_id:
         return jsonify(status="error", message="Not authorized."), 403
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT * FROM sqlift.get_latest_measurements(%s)", (user_id,))
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL get_latest_measurements(%s)", (user_id,))
         rows = cur.fetchall()
 
     return jsonify(status="ok", measurements=[serialize_row(r) for r in rows])
@@ -141,8 +132,8 @@ def get_measurements_history(conn, user_id):
     if session.get("user_id") != user_id:
         return jsonify(status="error", message="Not authorized."), 403
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT * FROM sqlift.get_all_measurements(%s)", (user_id,))
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL get_all_measurements(%s)", (user_id,))
         rows = cur.fetchall()
 
     return jsonify(status="ok", measurements=[serialize_row(r) for r in rows])
@@ -154,8 +145,8 @@ def get_friends(conn, user_id):
     if session.get("user_id") != user_id:
         return jsonify(status="error", message="Not authorized."), 403
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT * FROM sqlift.get_user_friends(%s)", (user_id,))
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL get_user_friends(%s)", (user_id,))
         friends = cur.fetchall()
 
     return jsonify(status="ok", friends=friends)
@@ -175,12 +166,9 @@ def add_friend(conn, user_id):
     if not target_username:
         return jsonify(status="error", message="username is required."), 400
 
-    with conn.cursor(row_factory=dict_row) as cur:
+    with conn.cursor(dictionary=True) as cur:
         try:
-            cur.execute(
-                "SELECT * FROM sqlift.add_friend(%s, %s)",
-                (user_id, target_username),
-            )
+            cur.execute("CALL add_friend(%s, %s)", (user_id, target_username))
             friend = cur.fetchone()
             conn.commit()
         except Exception as exc:
@@ -188,7 +176,7 @@ def add_friend(conn, user_id):
             msg = str(exc).lower()
             if "cannot add yourself" in msg:
                 return jsonify(status="error", message="You cannot add yourself as a friend."), 400
-            if "unique" in msg or "already friends" in msg:
+            if "1062" in msg or "already friends" in msg:
                 return jsonify(status="error", message="Already friends with that user."), 409
             if "not found" in msg:
                 return jsonify(status="error", message="User not found."), 404
@@ -206,13 +194,13 @@ def remove_friend(conn, user_id, friend_id):
     if session.get("user_id") != user_id:
         return jsonify(status="error", message="Not authorized."), 403
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT sqlift.remove_friend(%s, %s)", (user_id, friend_id))
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL remove_friend(%s, %s)", (user_id, friend_id))
         row = cur.fetchone()
         conn.commit()
 
-    removed = row and list(row.values())[0]
-    if not removed:
+    removed = row and row.get("was_deleted")
+    if not removed or removed == 0:
         return jsonify(status="error", message="Friend relationship not found."), 404
 
     return jsonify(status="ok", message="Friend removed.")
