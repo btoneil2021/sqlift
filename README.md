@@ -1,20 +1,6 @@
 <div align="center">
   <h1>SQLift (CS-5200 Project)</h1>
 
-  <p align="center">
-    <a href="https://cs-5200-project.vercel.app"><img src="https://img.shields.io/badge/status-Live_Demo-success?style=for-the-badge&logo=vercel" alt="Live Demo" /></a>
-    <a href="https://github.com/btoneil2021/cs-5200-project"><img src="https://img.shields.io/github/repo-size/btoneil2021/cs-5200-project?style=for-the-badge" alt="GitHub repo size"></a>
-    <a href="https://github.com/btoneil2021/cs-5200-project/commits/main"><img src="https://img.shields.io/github/last-commit/btoneil2021/cs-5200-project?style=for-the-badge&color=2ea043" alt="Last Commit"></a>
-  </p>
-
-  <p align="center">
-    <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React" />
-    <img src="https://img.shields.io/badge/Vite-B73BFE?style=for-the-badge&logo=vite&logoColor=FFD62E" alt="Vite" />
-    <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
-    <img src="https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white" alt="Flask" />
-    <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
-  </p>
-
   <h4>
     <a href="https://cs-5200-project.vercel.app">View Live App</a>
     <span> · </span>
@@ -22,13 +8,13 @@
   </h4>
 </div>
 
-This is a workout and achievement tracking application built with a Flask backend, a React/Vite frontend, and a PostgreSQL (Supabase) database.
+This is a workout and achievement tracking application built with a Flask backend, a React/Vite frontend, and a MySQL database.
 
 ## Technical Specifications
 
 - **Frontend**: React 19 (managed via Vite) and React Router for fast, client-side routing.
 - **Backend / Host Language**: Python 3.9+, primarily using the **Flask** web framework and **Flask-Cors** for handling cross-origin requests.
-- **Database**: PostgreSQL (hosted on Supabase) utilizing the `psycopg` database adapter.
+- **Database**: MySQL utilizing the `mysql-connector-python` database adapter.
 - **Authentication**: `bcrypt` for secure password hashing.
 - **Scripts**: Built-in Python scripts for data scraping and API population (e.g., from the Wger API).
 - **Environment Management**: `python-dotenv` for backend environment variables, and `concurrently` (via npm) for running both server and client together.
@@ -55,14 +41,14 @@ git clone https://github.com/btoneil2021/cs-5200-project
 cd cs-5200-project
 ```
 
-### 2. Set Up Your Supabase Database
+### 2. Set Up Your MySQL Database
 
-You'll need your own free Supabase project. The app does not share a database, so each person running this locally needs their own.
+You'll need a MySQL instance running locally or on a cloud provider.
 
-1. Go to [supabase.com](https://supabase.com) and create a free account.
-2. Click **New Project**, give it a name, set a strong database password, and choose a region.
-3. Once the project is ready, run the SQL files in order using the **SQL Editor** in the Supabase dashboard:
-     1. `sql/create-tables.sql` — creates the schema, ENUMs, and all tables
+1. Ensure MySQL 8.0+ is installed and running.
+2. Create a new database (e.g., `sqlift`).
+3. Run the SQL files in order using your preferred MySQL client (e.g., MySQL Workbench, `mysql` CLI):
+     1. `sql/create-tables.sql` — creates the schema/database and all tables.
      2. `sql/auth_procs.sql`
      3. `sql/profile_procs.sql`
      4. `sql/workout.sql`
@@ -70,9 +56,9 @@ You'll need your own free Supabase project. The app does not share a database, s
      6. `sql/leaderboard_procs.sql`
      7. `sql/stats_procs.sql`
      8. `sql/View_workout.sql`
-   - Optionally, run `sql/database_dump.sql` **after** the above steps to seed the database with exercise and equipment data. The dump is inserts only — it requires the schema to already exist.
+   - Optionally, seed the database with exercise and equipment data from `sql/database_dump.sql`.
 
-4. Get your connection string: **Project Settings > Database > Connection string > Transaction pooler (port 6543)**.
+4. Construct your connection string: `mysql://username:password@host:port/database_name`.
 
 ### 3. Environment Variables
 
@@ -83,11 +69,11 @@ cp .env.example .env
 ```
 
 ```
-# Your Supabase transaction pooler connection string (port 6543)
-DATABASE_URL="postgresql://postgres.<your-project-ref>:[YOUR-PASSWORD]@<region>.pooler.supabase.com:6543/postgres"
+# Your MySQL connection string (e.g., mysql://root:password@localhost:3306/sqlift)
+DATABASE_URL="mysql://root:[YOUR-PASSWORD]@localhost:3306/sqlift"
 
-# The database password you set when creating the Supabase project
-DATABASE_PASSWORD="your-supabase-db-password"
+# The database password for your MySQL user
+DATABASE_PASSWORD="your-mysql-password"
 
 # Generate one with: python -c "import secrets; print(secrets.token_hex(32))"
 SECRET_KEY="replace-with-a-long-random-string"
@@ -121,7 +107,7 @@ venv\Scripts\activate
 # On macOS/Linux:
 source venv/bin/activate
 
-# Install Flask, psycopg, bcrypt, and other API requirements
+# Install Flask, mysql-connector-python, bcrypt, and other API requirements
 pip install -r requirements.txt
 ```
 

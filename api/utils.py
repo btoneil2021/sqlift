@@ -1,6 +1,6 @@
 import os
 import datetime
-import psycopg
+import mysql.connector
 from flask import jsonify, current_app
 from functools import wraps
 from flask_limiter import Limiter
@@ -8,7 +8,7 @@ from flask_limiter.util import get_remote_address
 from flask_limiter.errors import RateLimitExceeded
 
 DB_SCHEMA = "sqlift"
-DB_SSL_MODE = "require"
+DB_SSL_MODE = "PREFERRED" # MySQL connector uses PREFERRED, REQUIRED, etc.
 RATE_LIMIT_DEFAULT = "40 per minute"
 RATE_LIMIT_STORAGE = "memory://"
 
@@ -24,7 +24,7 @@ def serialize_row(row):
 
 def tbl(name: str) -> str:
     # Returns a fully-qualified quoted table identifier for the configured schema
-    return f'{DB_SCHEMA}."{name}"'
+    return f'{DB_SCHEMA}.`{name}`'
 
 
 limiter = Limiter(
@@ -43,25 +43,17 @@ def _clean_env_value(value):
     return value
 
 def _get_database_url():
-    # Resolves the database URL from env vars, substituting password placeholder if needed
+    # Resolves the database URL from env vars
     url = _clean_env_value(
         os.getenv("DATABASE_URL")
-        or os.getenv("SUPABASE_DATABASE_URL")
-        or os.getenv("POSTGRES_URL")
+        or os.getenv("MYSQL_URL")
     )
     if not url:
         raise RuntimeError(
-            "Missing database configuration. Set DATABASE_URL to the Supabase "
-            "direct connection string."
+            "Missing database configuration. Set DATABASE_URL to your MySQL "
+            "connection string/URL."
         )
-    if "[YOUR-PASSWORD]" in url:
-        password = _clean_env_value(os.getenv("DATABASE_PASSWORD"))
-        if not password:
-            raise RuntimeError(
-                "DATABASE_URL contains [YOUR-PASSWORD] placeholder, but "
-                "DATABASE_PASSWORD environment variable is not set."
-            )
-        url = url.replace("[YOUR-PASSWORD]", password)
+    # MySQL URLs often look like mysql://user:pass@host:port/db
     return url
 
 def get_database_url():
@@ -83,38 +75,22 @@ _CONSTRAINT_MESSAGES = {
 }
 
 
-def db_error_message(exc):
-    """Return a user-friendly error message from a psycopg exception.
-    Looks up named CHECK constraint violations in a human-readable mapping;
-    falls back to message_primary for RAISE EXCEPTION and other errors.
-    Never exposes message_detail to avoid leaking internal row data."""
-    diag = getattr(exc, 'diag', None)
-    if diag is None:
-        return str(exc).split('\n')[0]
-    constraint = getattr(diag, 'constraint_name', None)
-    if constraint and constraint in _CONSTRAINT_MESSAGES:
-        return _CONSTRAINT_MESSAGES[constraint]
-    return getattr(diag, 'message_primary', None) or str(exc).split('\n')[0]
-
-
-def postgres_error_hint(exc):
-    # Maps common Postgres connection exceptions to user-friendly hint messages
+def mysql_error_hint(exc):
     message = str(exc)
-    if "password authentication failed" in message.lower():
+    if "Access denied" in message:
         return (
-            "Database authentication failed. Check your password in the "
-            "environment variables (DATABASE_URL or DATABASE_PASSWORD)."
+            "Database authentication failed. Check your username and password in the "
+            "environment variables (DATABASE_URL)."
         )
-    if "getaddrinfo failed" in message.lower() or "resolve host" in message.lower():
+    if "Can't connect to MySQL server" in message:
         return (
-            "Could not resolve the database host. This means your .env file is "
-            "still using the placeholder database URL instead of your real one. "
-            "Please update your .env file with your actual Supabase credentials."
+            "Could not connect to the MySQL server. Check your host and port in "
+            "the DATABASE_URL environment variable."
         )
-    if "relation" in message.lower() and '"user"' in message:
+    if "Unknown database" in message:
         return (
-            f'The {DB_SCHEMA} schema or user table is missing. Re-run the SQL setup '
-            "and confirm the table names match the schema."
+            f"The database '{DB_SCHEMA}' is missing. Ensure the database is created "
+            "and matches the name in your connection settings."
         )
     return "An error occurred while connecting to the database."
 
@@ -127,11 +103,31 @@ def api_route(limit=None):
 
         @wraps(decorated_f)
         def wrapper(*args, **kwargs):
+            conn = None
             try:
                 database_url = get_database_url()
-                with psycopg.connect(database_url, sslmode=DB_SSL_MODE) as conn:
-                    conn.execute(f"SET search_path TO {DB_SCHEMA}")
+                if "://" in database_url:
+                    parts = database_url.split("://")[1].split("@")
+                    creds = parts[0].split(":")
+                    host_port_db = parts[1].split("/")
+                    host_port = host_port_db[0].split(":")
+                    
+                    conn = mysql.connector.connect(
+                        user=creds[0],
+                        password=creds[1] if len(creds) > 1 else "",
+                        host=host_port[0],
+                        port=host_port[1] if len(host_port) > 1 else 3306,
+                        database=host_port_db[1] if len(host_port_db) > 1 else DB_SCHEMA,
+                        ssl_disabled=(DB_SSL_MODE == "DISABLED")
+                    )
+                else:
+                    conn = mysql.connector.connect(user='root', database=DB_SCHEMA)
+                try:
                     return decorated_f(conn, *args, **kwargs)
+                finally:
+                    if conn and conn.is_connected():
+                        conn.close()
+
             except RateLimitExceeded as exc:
                 return jsonify(
                     status="error",
@@ -145,7 +141,7 @@ def api_route(limit=None):
                     connected=False,
                     message="An error occurred during the request.",
                     error="Internal Server Error",
-                    hint=postgres_error_hint(exc),
+                    hint=mysql_error_hint(exc),
                 ), 500
         return wrapper
     return decorator

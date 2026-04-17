@@ -1,6 +1,6 @@
 flask
 flask-cors
-psycopg[binary]
+mysql-connector-python
 python-dotenv
 Flask-Limiter
 bcrypt
