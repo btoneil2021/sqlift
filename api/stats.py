@@ -1,6 +1,5 @@
 import datetime
 from flask import Blueprint, jsonify, request, session
-from psycopg.rows import dict_row
 
 from api.utils import api_route, serialize_row
 
@@ -28,28 +27,25 @@ def log_measurement(conn, user_id):
     if not data.get("weight"):
         return jsonify(status="error", message="weight is required."), 400
 
-    fields = {
-        "p_weight":              data.get("weight"),
-        "p_height":              data.get("height"),
-        "p_visual_body_fat_pct": data.get("visual_body_fat_percent"),
-        "p_neck":                data.get("neck_measurement"),
-        "p_shoulder":            data.get("shoulder_measurement"),
-        "p_chest":               data.get("chest_measurement"),
-        "p_bicep":               data.get("bicep_measurement"),
-        "p_forearm":             data.get("forearm_measurement"),
-        "p_waist":               data.get("waist_measurement"),
-        "p_hips":                data.get("hips_measurement"),
-        "p_thigh":               data.get("thigh_measurement"),
-        "p_calve":               data.get("calve_measurement"),
-    }
-    provided = {k: v for k, v in fields.items() if v is not None}
-    named_sql = ", ".join(f"{k} => %({k})s" for k in provided)
+    params = [
+        user_id,
+        data.get("weight"),
+        data.get("height"),
+        data.get("visual_body_fat_percent"),
+        data.get("neck_measurement"),
+        data.get("shoulder_measurement"),
+        data.get("chest_measurement"),
+        data.get("bicep_measurement"),
+        data.get("forearm_measurement"),
+        data.get("waist_measurement"),
+        data.get("hips_measurement"),
+        data.get("thigh_measurement"),
+        data.get("calve_measurement")
+    ]
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            f"SELECT * FROM sqlift.log_measurement(p_user_id => %(p_user_id)s, {named_sql})",
-            {"p_user_id": user_id, **provided},
-        )
+    with conn.cursor(dictionary=True) as cur:
+        query = "CALL log_measurement(" + ",".join(["%s"] * len(params)) + ")"
+        cur.execute(query, params)
         row = cur.fetchone()
         conn.commit()
 
@@ -62,11 +58,8 @@ def get_goals(conn, user_id):
     if session.get("user_id") != user_id:
         return jsonify(status="error", message="Not authorized."), 403
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            "SELECT * FROM sqlift.get_user_goals(p_user_id => %(p_user_id)s)",
-            {"p_user_id": user_id},
-        )
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL get_user_goals(%s)", (user_id,))
         goals = cur.fetchall()
 
     return jsonify(status="ok", goals=[serialize_goal(g) for g in goals])
@@ -88,15 +81,8 @@ def add_goal(conn, user_id):
 
     target_date = data.get("target_date") or None
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            """SELECT * FROM sqlift.add_user_goal(
-                p_user_id     => %(p_user_id)s,
-                p_description => %(p_description)s,
-                p_target_date => %(p_target_date)s
-            )""",
-            {"p_user_id": user_id, "p_description": description, "p_target_date": target_date},
-        )
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL add_user_goal(%s, %s, %s)", (user_id, description, target_date))
         goal = cur.fetchone()
         conn.commit()
 
@@ -118,15 +104,8 @@ def update_goal(conn, user_id, goal_id):
     if new_status not in allowed_statuses:
         return jsonify(status="error", message="Invalid completion_status."), 400
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            """SELECT * FROM sqlift.update_goal_status(
-                p_user_id           => %(p_user_id)s,
-                p_goal_id           => %(p_goal_id)s,
-                p_completion_status => %(p_completion_status)s
-            )""",
-            {"p_user_id": user_id, "p_goal_id": goal_id, "p_completion_status": new_status},
-        )
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL update_goal_status(%s, %s, %s)", (user_id, goal_id, new_status))
         goal = cur.fetchone()
         conn.commit()
 
@@ -142,16 +121,13 @@ def delete_goal(conn, user_id, goal_id):
     if session.get("user_id") != user_id:
         return jsonify(status="error", message="Not authorized."), 403
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            "SELECT sqlift.delete_user_goal(p_user_id => %(p_user_id)s, p_goal_id => %(p_goal_id)s)",
-            {"p_user_id": user_id, "p_goal_id": goal_id},
-        )
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL delete_user_goal(%s, %s)", (user_id, goal_id))
         row = cur.fetchone()
         conn.commit()
 
-    deleted = row and list(row.values())[0]
-    if not deleted:
+    deleted = row and row["deleted"]
+    if not deleted or deleted == 0:
         return jsonify(status="error", message="Goal not found."), 404
 
     return jsonify(status="ok", message="Goal deleted.")
@@ -163,11 +139,8 @@ def get_exercise_progression(conn, user_id):
     if session.get("user_id") != user_id:
         return jsonify(status="error", message="Not authorized."), 403
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            "SELECT * FROM sqlift.get_user_exercise_progression(p_user_id => %(p_user_id)s)",
-            {"p_user_id": user_id},
-        )
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL get_user_exercise_progression(%s)", (user_id,))
         rows = cur.fetchall()
 
     exercises = {}
@@ -193,17 +166,13 @@ def get_hero_stats(conn, user_id):
     if session.get("user_id") != user_id:
         return jsonify(status="error", message="Not authorized."), 403
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            "SELECT * FROM sqlift.get_user_hero_stats(p_user_id => %(p_user_id)s)",
-            {"p_user_id": user_id},
-        )
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL get_user_hero_stats(%s)", (user_id,))
         hero = cur.fetchone()
-
-        cur.execute(
-            "SELECT * FROM sqlift.get_user_exercise_prs(p_user_id => %(p_user_id)s)",
-            {"p_user_id": user_id},
-        )
+        
+        # MySQL might have additional result sets if multiple queries were in the procedure, 
+        # but here we separate calls.
+        cur.execute("CALL get_user_exercise_prs(%s)", (user_id,))
         prs = cur.fetchall()
 
     if not hero:
@@ -247,17 +216,11 @@ def get_muscle_volume(conn, user_id):
     if session.get("user_id") != user_id:
         return jsonify(status="error", message="Not authorized."), 403
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            "SELECT * FROM sqlift.get_muscle_volume_by_session(p_user_id => %(p_user_id)s)",
-            {"p_user_id": user_id},
-        )
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL get_muscle_volume_by_session(%s)", (user_id,))
         rows = cur.fetchall()
 
-        cur.execute(
-            "SELECT * FROM sqlift.get_favourite_muscle(p_user_id => %(p_user_id)s)",
-            {"p_user_id": user_id},
-        )
+        cur.execute("CALL get_favourite_muscle(%s)", (user_id,))
         fav = cur.fetchone()
 
     by_date = {}
@@ -293,23 +256,14 @@ def get_workout_history(conn, user_id):
     if session.get("user_id") != user_id:
         return jsonify(status="error", message="Not authorized."), 403
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            "SELECT * FROM sqlift.get_user_workout_history(p_user_id => %(p_user_id)s)",
-            {"p_user_id": user_id},
-        )
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute("CALL get_user_workout_history(%s)", (user_id,))
         sessions = [_serialize_session(s) for s in cur.fetchall()]
 
-        cur.execute(
-            "SELECT * FROM sqlift.get_user_daily_streaks(p_user_id => %(p_user_id)s)",
-            {"p_user_id": user_id},
-        )
+        cur.execute("CALL get_user_daily_streaks(%s)", (user_id,))
         streaks = cur.fetchone()
 
-        cur.execute(
-            "SELECT * FROM sqlift.get_user_weekly_streaks(p_user_id => %(p_user_id)s)",
-            {"p_user_id": user_id},
-        )
+        cur.execute("CALL get_user_weekly_streaks(%s)", (user_id,))
         per_workout_streaks = cur.fetchall()
 
     return jsonify(

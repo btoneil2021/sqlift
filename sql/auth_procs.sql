@@ -9,7 +9,7 @@ BEGIN
     SELECT u.user_id, u.username, u.first_name, u.last_name,
            u.height, u.sex, u.email, u.phone_num, u.profile_pic_url, u.password
     FROM user u
-    WHERE u.email = identifier OR u.username = p_identifier;
+    WHERE u.email = p_identifier OR u.username = p_identifier;
 END $$
 DELIMITER ;
 
@@ -25,15 +25,13 @@ CREATE PROCEDURE signup_user(
     p_phone_num VARCHAR(15)
 )
 BEGIN
-	DECLARE v_user_id BIGINT;
-    
     INSERT INTO user (username, email, password, first_name, last_name, phone_num)
     VALUES (p_username, p_email, p_password, p_first_name, p_last_name, p_phone_num);
 
     SELECT u.user_id, u.username, u.first_name, u.last_name,
            u.height, u.sex, u.email, u.phone_num, u.profile_pic_url
     FROM user u
-    WHERE u.user_id = v_user_id;
+    WHERE u.user_id = LAST_INSERT_ID();
 END $$
 DELIMITER ;
 
