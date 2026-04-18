@@ -47,6 +47,8 @@ def log_measurement(conn, user_id):
         query = "CALL log_measurement(" + ",".join(["%s"] * len(params)) + ")"
         cur.execute(query, params)
         row = cur.fetchone()
+        while cur.nextset():
+            pass
         conn.commit()
 
     return jsonify(status="ok", measurement=serialize_row(row)), 201
@@ -84,6 +86,8 @@ def add_goal(conn, user_id):
     with conn.cursor(dictionary=True) as cur:
         cur.execute("CALL add_user_goal(%s, %s, %s)", (user_id, description, target_date))
         goal = cur.fetchone()
+        while cur.nextset():
+            pass
         conn.commit()
 
     return jsonify(status="ok", goal=serialize_goal(goal)), 201
@@ -107,6 +111,8 @@ def update_goal(conn, user_id, goal_id):
     with conn.cursor(dictionary=True) as cur:
         cur.execute("CALL update_goal_status(%s, %s, %s)", (user_id, goal_id, new_status))
         goal = cur.fetchone()
+        while cur.nextset():
+            pass
         conn.commit()
 
     if goal is None:
@@ -124,6 +130,8 @@ def delete_goal(conn, user_id, goal_id):
     with conn.cursor(dictionary=True) as cur:
         cur.execute("CALL delete_user_goal(%s, %s)", (user_id, goal_id))
         row = cur.fetchone()
+        while cur.nextset():
+            pass
         conn.commit()
 
     deleted = row and row["deleted"]
@@ -169,9 +177,9 @@ def get_hero_stats(conn, user_id):
     with conn.cursor(dictionary=True) as cur:
         cur.execute("CALL get_user_hero_stats(%s)", (user_id,))
         hero = cur.fetchone()
-        
-        # MySQL might have additional result sets if multiple queries were in the procedure, 
-        # but here we separate calls.
+        while cur.nextset():
+            pass
+
         cur.execute("CALL get_user_exercise_prs(%s)", (user_id,))
         prs = cur.fetchall()
 
@@ -219,6 +227,8 @@ def get_muscle_volume(conn, user_id):
     with conn.cursor(dictionary=True) as cur:
         cur.execute("CALL get_muscle_volume_by_session(%s)", (user_id,))
         rows = cur.fetchall()
+        while cur.nextset():
+            pass
 
         cur.execute("CALL get_favourite_muscle(%s)", (user_id,))
         fav = cur.fetchone()
@@ -259,9 +269,13 @@ def get_workout_history(conn, user_id):
     with conn.cursor(dictionary=True) as cur:
         cur.execute("CALL get_user_workout_history(%s)", (user_id,))
         sessions = [_serialize_session(s) for s in cur.fetchall()]
+        while cur.nextset():
+            pass
 
         cur.execute("CALL get_user_daily_streaks(%s)", (user_id,))
         streaks = cur.fetchone()
+        while cur.nextset():
+            pass
 
         cur.execute("CALL get_user_weekly_streaks(%s)", (user_id,))
         per_workout_streaks = cur.fetchall()

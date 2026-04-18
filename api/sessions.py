@@ -79,11 +79,23 @@ def get_session(conn, session_id):
                 s["rest_time"] = _seconds_to_interval(s.get("rest_time"))
             record["sets"] = sets
 
-    payload = serialize_row(session_row)
-    payload["records"] = [
-        {**serialize_row(r), "sets": r["sets"]} for r in records
-    ]
-    return jsonify(status="ok", **payload)
+    # Fetch planned exercises for the exercise picker
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute(
+            "CALL get_workout_exercises(%s, %s)",
+            (user_id, session_row["workout_id"]),
+        )
+        planned = cur.fetchall()
+
+    sess = serialize_row(session_row)
+    return jsonify(
+        status="ok",
+        session=sess,
+        planned_exercises=[serialize_row(p) for p in planned],
+        records=[
+            {**serialize_row(r), "sets": r["sets"]} for r in records
+        ],
+    )
 
 
 # ── Record log operations ─────────────────────────────────────────────────────
@@ -125,6 +137,8 @@ def delete_record(conn, record_log_id):
     try:
         with conn.cursor(dictionary=True) as cur:
             cur.execute("CALL delete_record_log(%s, %s)", (user_id, record_log_id))
+            while cur.nextset():
+                pass
             conn.commit()
     except Exception as exc:
         conn.rollback()
@@ -211,6 +225,8 @@ def delete_set(conn, set_log_id):
     try:
         with conn.cursor(dictionary=True) as cur:
             cur.execute("CALL delete_set_log(%s, %s)", (user_id, set_log_id))
+            while cur.nextset():
+                pass
             conn.commit()
     except Exception as exc:
         conn.rollback()
@@ -240,6 +256,8 @@ def finish_session(conn, session_id):
                 (user_id, session_id, notes, difficulty, enjoyment, energy),
             )
             row = cur.fetchone()
+            while cur.nextset():
+                pass
             conn.commit()
     except Exception as exc:
         conn.rollback()
@@ -263,6 +281,8 @@ def abandon_session(conn, session_id):
                 (user_id, session_id, "Abandoned", None, None, None),
             )
             row = cur.fetchone()
+            while cur.nextset():
+                pass
             conn.commit()
     except Exception as exc:
         conn.rollback()

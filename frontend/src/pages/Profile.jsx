@@ -46,7 +46,7 @@ function FriendAvatar({ first_name, last_name }) {
 
 const SEX_OPTIONS = ['M', 'F', 'Other', '']
 
-function FieldRow({ label, value, editing, editValue, onChange, type = 'text', suffix }) {
+function FieldRow({ label, value, editing, editValue, onChange, type = 'text', suffix, min }) {
   return (
     <div className="stat-item" style={{ gridColumn: 'span 1' }}>
       <span className="stat-label">{label}</span>
@@ -58,6 +58,7 @@ function FieldRow({ label, value, editing, editValue, onChange, type = 'text', s
             value={editValue ?? ''}
             onChange={e => onChange(e.target.value)}
             step={type === 'number' ? 'any' : undefined}
+            min={min}
           />
           {suffix && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>{suffix}</span>}
         </div>
@@ -382,7 +383,7 @@ export default function Profile() {
 
           {/* Editable fields grid */}
           <div className="stats-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-            <FieldRow label="HEIGHT (cm)" value={user.height} editing={editing} editValue={draft.height} onChange={set('height')} type="number" />
+            <FieldRow label="HEIGHT (cm)" value={user.height} editing={editing} editValue={draft.height} onChange={set('height')} type="number" min="0" />
             <SelectRow label="SEX" value={user.sex} editing={editing} editValue={draft.sex} onChange={set('sex')} options={SEX_OPTIONS} />
             <FieldRow label="EMAIL" value={user.email} editing={editing} editValue={draft.email} onChange={set('email')} type="email" />
             <FieldRow label="PHONE" value={user.phone_num} editing={editing} editValue={draft.phone_num} onChange={set('phone_num')} type="tel" />

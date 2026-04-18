@@ -15,6 +15,8 @@ def get_achievements(conn, user_id):
     with conn.cursor(dictionary=True) as cur:
         cur.execute("CALL evaluate_and_get_achievements(%s)", (user_id,))
         rows = cur.fetchall()
+        while cur.nextset():
+            pass
     conn.commit()  # required — the procedure performs INSERTs to award achievements
 
     achievements = [

@@ -8,9 +8,9 @@ FOR EACH ROW
 BEGIN
 	IF NEW.user_id = NEW.friend_user_id THEN
 		SIGNAL SQLSTATE '45000'
-			SET MESSAGE_TEXT = 'user_id and friend_user_id cannot be the same';
+		SET MESSAGE_TEXT = 'user_id and friend_user_id cannot be the same';
 	END IF;
-END$$
+END $$
 DELIMITER ;
 
 DROP TRIGGER IF EXISTS trg_prevent_friendship_with_self_update
@@ -21,7 +21,7 @@ FOR EACH ROW
 BEGIN
 	IF NEW.user_id = NEW.friend_user_id THEN
 		SIGNAL SQLSTATE '45000'
-			SET MESSAGE_TEXT = 'user_id and friend_user_id cannot be the same';
+		SET MESSAGE_TEXT = 'user_id and friend_user_id cannot be the same';
 	END IF;
-END$$
+END $$
 DELIMITER ;

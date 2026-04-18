@@ -62,9 +62,33 @@ def get_exercise_library(conn):
     if err:
         return err
     with conn.cursor(dictionary=True) as cur:
-        cur.execute("CALL search_exercises(NULL)")
-        results = cur.fetchall()
-    return jsonify(status="ok", exercises=results)
+        cur.execute("CALL get_exercise_library()")
+        exercises = cur.fetchall()
+        while cur.nextset():
+            pass
+
+        cur.execute("CALL get_exercise_library_muscle_groups()")
+        mg_rows = cur.fetchall()
+        while cur.nextset():
+            pass
+
+        cur.execute("CALL get_exercise_library_equipment()")
+        eq_rows = cur.fetchall()
+
+    # Index muscle groups and equipment by exercise_id
+    mg_map = {}
+    for r in mg_rows:
+        mg_map.setdefault(r['exercise_id'], []).append({'name': r['name'], 'role': r['role']})
+
+    eq_map = {}
+    for r in eq_rows:
+        eq_map.setdefault(r['exercise_id'], []).append(r['name'])
+
+    for ex in exercises:
+        ex['muscle_groups'] = mg_map.get(ex['exercise_id'], [])
+        ex['equipment'] = eq_map.get(ex['exercise_id'], [])
+
+    return jsonify(status="ok", exercises=exercises)
 
 
 # ── Exercise detail ───────────────────────────────────────────────────────────
@@ -76,13 +100,30 @@ def get_exercise(conn, exercise_id):
     if err:
         return err
     with conn.cursor(dictionary=True) as cur:
-        cur.execute(
-            f"SELECT exercise_id, name AS exercise_name FROM {tbl('exercise')} WHERE exercise_id = %s",
-            (exercise_id,),
-        )
+        cur.execute("CALL get_exercise_by_id(%s)", (exercise_id,))
         exercise = cur.fetchone()
-    if not exercise:
-        return jsonify(status="error", message="Exercise not found."), 404
+        while cur.nextset():
+            pass
+
+        if not exercise:
+            return jsonify(status="error", message="Exercise not found."), 404
+
+        cur.execute("CALL get_exercise_muscle_groups(%s)", (exercise_id,))
+        mg_rows = cur.fetchall()
+        while cur.nextset():
+            pass
+
+        cur.execute("CALL get_exercise_equipment(%s)", (exercise_id,))
+        eq_rows = cur.fetchall()
+        while cur.nextset():
+            pass
+
+        cur.execute("CALL get_exercise_media(%s)", (exercise_id,))
+        media_rows = cur.fetchall()
+
+    exercise['muscle_groups'] = [{'name': r['name'], 'role': r['role']} for r in mg_rows]
+    exercise['equipment'] = [r['name'] for r in eq_rows]
+    exercise['media'] = [{'url': r['url'], 'type': r['type']} for r in media_rows]
     return jsonify(status="ok", exercise=exercise)
 
 
@@ -95,18 +136,53 @@ def list_workouts(conn):
     if err:
         return err
     with conn.cursor(dictionary=True) as cur:
-        cur.execute(
-            f"""
-            SELECT w.workout_id, w.name AS workout_name, w.preferred_day,
-                   get_primary_muscle_group_for_workout(w.workout_id) AS primary_muscle_group
-            FROM {tbl('workout')} w
-            WHERE w.user_id = %s
-            ORDER BY w.name ASC
-            """,
-            (user_id,),
-        )
+        cur.execute("CALL list_user_workouts(%s)", (user_id,))
         workouts = cur.fetchall()
+        while cur.nextset():
+            pass
+
+        cur.execute("CALL list_user_workout_tags(%s)", (user_id,))
+        tag_rows = cur.fetchall()
+
+    # Index tags by workout_id
+    tag_map = {}
+    for r in tag_rows:
+        tag_map.setdefault(r['workout_id'], []).append({
+            'tag_name': r['tag_name'],
+            'color_code': r['color_code'],
+        })
+
+    for w in workouts:
+        w['tags'] = tag_map.get(w['workout_id'], [])
+        if w.get('last_started_at'):
+            w['last_started_at'] = w['last_started_at'].isoformat()
+
     return jsonify(status="ok", workouts=workouts)
+
+
+# ── Reference data for workout builder ────────────────────────────────────────
+
+@workouts_bp.route("/api/workouts/new/reference-data")
+@api_route()
+def get_reference_data(conn):
+    user_id, err = _require_user()
+    if err:
+        return err
+    with conn.cursor(dictionary=True) as cur:
+        cur.execute(f"SELECT name, color_code FROM {tbl('workout_tag')} ORDER BY name")
+        tags = cur.fetchall()
+
+        cur.execute(f"SELECT muscle_id, name FROM {tbl('muscle_group')} ORDER BY name")
+        muscle_groups = cur.fetchall()
+
+        cur.execute(f"SELECT equipment_id, name FROM {tbl('equipment')} ORDER BY name")
+        equipment = cur.fetchall()
+
+    return jsonify(status="ok", data={
+        "tags": tags,
+        "muscle_groups": muscle_groups,
+        "equipment": equipment,
+    })
 
 
 # ── Workout CRUD ──────────────────────────────────────────────────────────────
@@ -145,10 +221,18 @@ def get_workout(conn, workout_id):
     for ex in exercises:
         ex["expected_rest_time"] = _seconds_to_interval(ex.get("expected_rest_time"))
 
-    workout["tags"] = tags
-    workout["exercises"] = [serialize_row(e) for e in exercises]
-    workout["history"] = serialize_row(history) if history else None
-    return jsonify(status="ok", workout=workout)
+    header = serialize_row(workout)
+    # Proc returns 'workout_name' but frontend expects 'name'
+    if "workout_name" in header:
+        header["name"] = header.pop("workout_name")
+
+    result = {
+        "header": header,
+        "tags": tags,
+        "exercises": [serialize_row(e) for e in exercises],
+        "history": serialize_row(history) if history else None,
+    }
+    return jsonify(status="ok", workout=result)
 
 
 @workouts_bp.route("/api/workouts", methods=["POST"])
@@ -280,6 +364,8 @@ def delete_workout(conn, workout_id):
     try:
         with conn.cursor(dictionary=True) as cur:
             cur.execute("CALL delete_workout(%s, %s)", (user_id, workout_id))
+            while cur.nextset():
+                pass
             conn.commit()
     except Exception as exc:
         conn.rollback()

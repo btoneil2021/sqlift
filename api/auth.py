@@ -65,6 +65,8 @@ def signup(conn):
                 (username, email, password_hash, first_name, last_name, phone_num),
             )
             user = cur.fetchone()
+            while cur.nextset():
+                pass
             conn.commit()
         except Exception as exc:
             conn.rollback()

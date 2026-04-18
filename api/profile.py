@@ -60,6 +60,8 @@ def update_profile(conn, user_id):
                 ),
             )
             updated = cur.fetchone()
+            while cur.nextset():
+                pass
             conn.commit()
         except Exception as exc:
             conn.rollback()
@@ -98,6 +100,8 @@ def change_password(conn, user_id):
     with conn.cursor(dictionary=True) as cur:
         cur.execute("CALL get_user_password_hash(%s)", (user_id,))
         row = cur.fetchone()
+        while cur.nextset():
+            pass
 
         if row is None:
             return jsonify(status="error", message="User not found."), 404
@@ -108,6 +112,8 @@ def change_password(conn, user_id):
 
         new_hash = bcrypt.hashpw(new_pw.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
         cur.execute("CALL change_user_password(%s, %s)", (user_id, new_hash))
+        while cur.nextset():
+            pass
         conn.commit()
 
     return jsonify(status="ok", message="Password updated successfully.")
@@ -170,6 +176,8 @@ def add_friend(conn, user_id):
         try:
             cur.execute("CALL add_friend(%s, %s)", (user_id, target_username))
             friend = cur.fetchone()
+            while cur.nextset():
+                pass
             conn.commit()
         except Exception as exc:
             conn.rollback()
@@ -197,6 +205,8 @@ def remove_friend(conn, user_id, friend_id):
     with conn.cursor(dictionary=True) as cur:
         cur.execute("CALL remove_friend(%s, %s)", (user_id, friend_id))
         row = cur.fetchone()
+        while cur.nextset():
+            pass
         conn.commit()
 
     removed = row and row.get("was_deleted")

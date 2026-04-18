@@ -166,7 +166,7 @@ export default function Home() {
                   <li key={w.workout_id} className="workout-row">
                     <div className="workout-info">
                       <h3>
-                        {w.name.toUpperCase()}
+                        {(w.name || 'UNNAMED').toUpperCase()}
                         {w.primary_muscle_group && (
                           <span className="tag border-amber">{w.primary_muscle_group.toUpperCase()}</span>
                         )}

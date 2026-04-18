@@ -28,6 +28,11 @@ CREATE PROCEDURE update_user_profile(
     p_profile_pic_url TEXT
 )
 BEGIN
+    IF p_height IS NOT NULL AND p_height < 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Height cannot be negative';
+    END IF;
+
     IF p_email IS NOT NULL AND EXISTS (
         SELECT 1 FROM user u
         WHERE u.email = p_email AND u.user_id <> p_user_id

@@ -1,33 +1,5 @@
 USE sqlift;
 
--- ─────────────────────────────────────────────────────────────────────────────
--- Seed canonical achievements (safe to re-run)
--- ─────────────────────────────────────────────────────────────────────────────
-INSERT IGNORE INTO achievement (name, description) VALUES
-  ('Baptism by Iron',       'Complete your first workout session'),
-  ('Goal Setter',           'Define your first fitness goal'),
-  ('Habit Former',          'Complete 3 workouts in a single calendar week'),
-  ('Unstoppable',           'Maintain a 7-day consecutive workout streak'),
-  ('Early Bird',            'Complete a workout before 7:00 AM'),
-  ('Night Owl',             'Complete a workout after 10:00 PM'),
-  ('Venerated Veteran',     'Complete 100 total workout sessions'),
-  ('PR Crusher',            'Set a personal record on any exercise'),
-  ('Volume King',           'Move over 10,000 lbs in a single session'),
-  ('Century Club',          'Perform a set with 100 or more reps'),
-  ('Heavy Hitter',          'Lift 315 lbs or more in a single set'),
-  ('No Pain No Gain',       'Log a session with an average RPE of 9 or higher'),
-  ('Socialite',             'Add your first friend'),
-  ('Squad Goals',           'Have 5 or more confirmed friends'),
-  ('Bio Tracker',           'Log your body measurements in 4 different weeks'),
-  ('Transformation Start',  'Log your weight at least twice to track progress'),
-  ('Muscle Scholar',        'Work out 5 different muscle groups in one week'),
-  ('Tool Master',           'Use 10 different types of equipment'),
-  ('The Architect',         'Create 10 custom workout templates'),
-  ('Completionist',         'Complete every planned set in a full workout session');
-
-
--- ─────────────────────────────────────────────────────────────────────────────
-
 DROP FUNCTION IF EXISTS ach_total_completed_sessions;
 DELIMITER $$
 CREATE FUNCTION ach_total_completed_sessions(p_user_id BIGINT)
@@ -42,8 +14,6 @@ BEGIN
 END $$
 DELIMITER ;
 
--- ─────────────────────────────────────────────────────────────────────────────
-
 DROP FUNCTION IF EXISTS ach_goal_count;
 DELIMITER $$
 CREATE FUNCTION ach_goal_count(p_user_id BIGINT)
@@ -54,8 +24,6 @@ BEGIN
     RETURN COALESCE(v, 0);
 END $$
 DELIMITER ;
-
--- ─────────────────────────────────────────────────────────────────────────────
 
 DROP FUNCTION IF EXISTS ach_longest_daily_streak;
 DELIMITER $$
@@ -82,8 +50,6 @@ BEGIN
 END $$
 DELIMITER ;
 
--- ─────────────────────────────────────────────────────────────────────────────
-
 DROP FUNCTION IF EXISTS ach_habit_formed;
 DELIMITER $$
 CREATE FUNCTION ach_habit_formed(p_user_id BIGINT)
@@ -103,8 +69,6 @@ BEGIN
 END $$
 DELIMITER ;
 
--- ─────────────────────────────────────────────────────────────────────────────
-
 DROP FUNCTION IF EXISTS ach_early_bird;
 DELIMITER $$
 CREATE FUNCTION ach_early_bird(p_user_id BIGINT)
@@ -121,8 +85,6 @@ BEGIN
 END $$
 DELIMITER ;
 
--- ─────────────────────────────────────────────────────────────────────────────
-
 DROP FUNCTION IF EXISTS ach_night_owl;
 DELIMITER $$
 CREATE FUNCTION ach_night_owl(p_user_id BIGINT)
@@ -138,8 +100,6 @@ BEGIN
     RETURN v;
 END $$
 DELIMITER ;
-
--- ─────────────────────────────────────────────────────────────────────────────
 
 DROP FUNCTION IF EXISTS ach_max_session_volume_kg;
 DELIMITER $$
@@ -161,8 +121,6 @@ BEGIN
 END $$
 DELIMITER ;
 
--- ─────────────────────────────────────────────────────────────────────────────
-
 DROP FUNCTION IF EXISTS ach_heaviest_set_kg;
 DELIMITER $$
 CREATE FUNCTION ach_heaviest_set_kg(p_user_id BIGINT)
@@ -179,8 +137,6 @@ BEGIN
 END $$
 DELIMITER ;
 
--- ─────────────────────────────────────────────────────────────────────────────
-
 DROP FUNCTION IF EXISTS ach_max_reps;
 DELIMITER $$
 CREATE FUNCTION ach_max_reps(p_user_id BIGINT)
@@ -196,8 +152,6 @@ BEGIN
     RETURN COALESCE(v, 0);
 END $$
 DELIMITER ;
-
--- ─────────────────────────────────────────────────────────────────────────────
 
 DROP FUNCTION IF EXISTS ach_pr_count;
 DELIMITER $$
@@ -217,8 +171,6 @@ BEGIN
     RETURN COALESCE(v, 0);
 END $$
 DELIMITER ;
-
--- ─────────────────────────────────────────────────────────────────────────────
 
 DROP FUNCTION IF EXISTS ach_high_rpe_session;
 DELIMITER $$
@@ -243,8 +195,6 @@ BEGIN
 END $$
 DELIMITER ;
 
--- ─────────────────────────────────────────────────────────────────────────────
-
 DROP FUNCTION IF EXISTS ach_confirmed_friends_count;
 DELIMITER $$
 CREATE FUNCTION ach_confirmed_friends_count(p_user_id BIGINT)
@@ -265,8 +215,6 @@ BEGIN
 END $$
 DELIMITER ;
 
--- ─────────────────────────────────────────────────────────────────────────────
-
 DROP FUNCTION IF EXISTS ach_measurement_weeks;
 DELIMITER $$
 CREATE FUNCTION ach_measurement_weeks(p_user_id BIGINT)
@@ -280,8 +228,6 @@ BEGIN
 END $$
 DELIMITER ;
 
--- ─────────────────────────────────────────────────────────────────────────────
-
 DROP FUNCTION IF EXISTS ach_weight_entries;
 DELIMITER $$
 CREATE FUNCTION ach_weight_entries(p_user_id BIGINT)
@@ -294,8 +240,6 @@ BEGIN
     RETURN COALESCE(v, 0);
 END $$
 DELIMITER ;
-
--- ─────────────────────────────────────────────────────────────────────────────
 
 DROP FUNCTION IF EXISTS ach_muscle_scholar;
 DELIMITER $$
@@ -318,8 +262,6 @@ BEGIN
 END $$
 DELIMITER ;
 
--- ─────────────────────────────────────────────────────────────────────────────
-
 DROP FUNCTION IF EXISTS ach_equipment_count;
 DELIMITER $$
 CREATE FUNCTION ach_equipment_count(p_user_id BIGINT)
@@ -336,8 +278,6 @@ BEGIN
 END $$
 DELIMITER ;
 
--- ─────────────────────────────────────────────────────────────────────────────
-
 DROP FUNCTION IF EXISTS ach_workout_template_count;
 DELIMITER $$
 CREATE FUNCTION ach_workout_template_count(p_user_id BIGINT)
@@ -348,8 +288,6 @@ BEGIN
     RETURN COALESCE(v, 0);
 END $$
 DELIMITER ;
-
--- ─────────────────────────────────────────────────────────────────────────────
 
 DROP FUNCTION IF EXISTS ach_completionist;
 DELIMITER $$
@@ -381,8 +319,6 @@ BEGIN
     RETURN v;
 END $$
 DELIMITER ;
-
--- ─────────────────────────────────────────────────────────────────────────────
 
 DROP PROCEDURE IF EXISTS evaluate_and_get_achievements;
 DELIMITER $$

@@ -130,7 +130,7 @@ export default function ViewExerciseLibrary() {
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text-h)', lineHeight: 1 }}>
                       {ex.name}
-                      {ex.is_unilateral && (
+                      {!!ex.is_unilateral && (
                         <span className="tag border-slate" style={{ marginLeft: 10, fontSize: 9, verticalAlign: 'middle' }}>UNILATERAL</span>
                       )}
                     </span>

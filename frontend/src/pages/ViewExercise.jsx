@@ -65,7 +65,7 @@ export default function ViewExercise() {
         {exercise.description && (
           <div>
             <div className="panel-title">DESCRIPTION</div>
-            {exercise.is_unilateral && (
+            {!!exercise.is_unilateral && (
               <span className="tag border-slate" style={{ display: 'inline-block', marginBottom: 10 }}>UNILATERAL</span>
             )}
             <p style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.7, margin: 0 }}>

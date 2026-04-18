@@ -1,11 +1,5 @@
 <div align="center">
   <h1>SQLift (CS-5200 Project)</h1>
-
-  <h4>
-    <a href="https://cs-5200-project.vercel.app">View Live App</a>
-    <span> · </span>
-    <a href="https://github.com/btoneil2021/cs-5200-project">View Repository</a>
-  </h4>
 </div>
 
 This is a workout and achievement tracking application built with a Flask backend, a React/Vite frontend, and a MySQL database.
@@ -23,25 +17,14 @@ This is a workout and achievement tracking application built with a Flask backen
 
 To build and run this project on your computer, you must install the following software. Please download and install them from their respective official pages:
 
-1. **Git**: Required to clone the repository.
-   - Download: [https://git-scm.com/downloads](https://git-scm.com/downloads)
-2. **Node.js (and npm)**: Required to run the React frontend and root concurrent scripts. (LTS version recommended)
+1. **Node.js (and npm)**: Required to run the React frontend and root concurrent scripts. (LTS version recommended)
    - Download: [https://nodejs.org/en/download/](https://nodejs.org/en/download/)
-3. **Python**: Required to run the Flask backend API and data scraping scripts. (Python 3.9+ recommended)
+2. **Python**: Required to run the Flask backend API and data scraping scripts. (Python 3.9+ recommended)
    - Download: [https://www.python.org/downloads/](https://www.python.org/downloads/)
 
 ## Installation and Setup
 
-### 1. Expected Installation Directory
-You can place this project anywhere on your computer (e.g., your `Documents` or `Projects` folder).
-
-Open your terminal or command prompt (such as PowerShell or Git Bash) and clone the repository:
-```bash
-git clone https://github.com/btoneil2021/cs-5200-project
-cd cs-5200-project
-```
-
-### 2. Set Up Your MySQL Database
+### 1. Set Up Your MySQL Database
 
 You'll need a MySQL instance running locally or on a cloud provider.
 
@@ -52,15 +35,17 @@ You'll need a MySQL instance running locally or on a cloud provider.
      2. `sql/auth_procs.sql`
      3. `sql/profile_procs.sql`
      4. `sql/workout.sql`
+     5. `sql/workout_session.sql`
      5. `sql/achievement_procs.sql`
      6. `sql/leaderboard_procs.sql`
      7. `sql/stats_procs.sql`
      8. `sql/View_workout.sql`
+     9. `sql/prevent_friendship.sql`
    - Optionally, seed the database with exercise and equipment data from `sql/database_dump.sql`.
 
 4. Construct your connection string: `mysql://username:password@host:port/database_name`.
 
-### 3. Environment Variables
+### 2. Environment Variables
 
 Copy `.env.example` to `.env` and fill in your values:
 
@@ -81,7 +66,7 @@ SECRET_KEY="replace-with-a-long-random-string"
 
 *The `DATABASE_PASSWORD` value is substituted into the URL at runtime — it replaces the `[YOUR-PASSWORD]` placeholder.*
 
-### 4. Install Dependencies
+### 3. Install Dependencies
 
 You will need to install dependencies for the root workspace, the frontend, and the backend.
 
@@ -150,24 +135,3 @@ python web-scrapers/import_wger.py --limit 50
 | `--limit N` | Limit the number of exercises fetched from the wger API |
 | `--max-pages N` | Limit the number of pages fetched from each wger endpoint |
 | `--database-url URL` | Override `DATABASE_URL` for a one-off import run |
-
-
-## Deployment
-
-This project is deployed to Vercel through GitHub Actions instead of Vercel's Git integration.
-
-When anyone with write access pushes to `main`, the workflow in `.github/workflows/deploy.yml` will:
-
-1. Pull the Vercel project settings and production environment.
-2. Deploy the repository root with `vercel deploy --prod`.
-3. Run a smoke test against the live backend at `https://cs-5200-project.vercel.app`.
-
-### Required GitHub secrets:
-
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
-
-Set `DATABASE_URL` in the Vercel project environment settings instead. The deploy workflow pulls it from Vercel during deployment.
-
-The repo can stay private. Teammates only need GitHub write access so their pushes can trigger the workflow
