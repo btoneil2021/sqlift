@@ -15,13 +15,27 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 CORS(app, supports_credentials=True)
 
-from api.utils import limiter
+from api.utils import limiter, api_route
 limiter.init_app(app)
 
 
 @app.route("/")
 def home():
     return "Backend is running!"
+
+
+@app.route("/api/hello")
+def hello():
+    return jsonify(message="Hello from Flask on Vercel!")
+
+
+@app.route("/api/supabase/keepalive")
+@api_route(limit="10 per hour")
+def supabase_keepalive(conn):
+    with conn.cursor() as cur:
+        cur.execute("SELECT 1 AS ok")
+        row = cur.fetchone()
+    return jsonify(status="ok", connected=True, result=row[0] if row else None)
 
 
 from api.auth import auth_bp
