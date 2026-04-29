@@ -20,6 +20,9 @@ jobs:
           fi
 
           curl --fail --silent --show-error --location \
+            --retry 10 \
+            --retry-delay 30 \
+            --retry-all-errors \
             "$SUPABASE_URL/rest/v1/user?select=user_id&limit=1" \
             --header "apikey: $SUPABASE_ANON_KEY" \
             --header "Authorization: Bearer $SUPABASE_ANON_KEY" \
