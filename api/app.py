@@ -35,7 +35,17 @@ def supabase_keepalive(conn):
     with conn.cursor() as cur:
         cur.execute("SELECT 1 AS ok")
         row = cur.fetchone()
-    return jsonify(status="ok", connected=True, result=row[0] if row else None)
+    if not row or row[0] != 1:
+        return jsonify(status="error", connected=False), 503
+    return jsonify(status="ok", connected=True, result=1)
+
+
+@app.after_request
+def prevent_keepalive_caching(response):
+    # Both schedulers must reach the database, including after an earlier failure.
+    if request.path == "/api/supabase/keepalive":
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 from api.auth import auth_bp

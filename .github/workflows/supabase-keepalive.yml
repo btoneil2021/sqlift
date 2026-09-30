@@ -2,28 +2,29 @@ name: Supabase Keepalive
 
 on:
   schedule:
-    - cron: "0 * * * *"
+    # Backup to Vercel Cron. Public-repository schedules still expire after
+    # 60 days without repository activity; see docs/supabase-keepalive.md.
+    - cron: "23 * * * *"
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-keepalive
+  cancel-in-progress: false
 
 jobs:
   ping-supabase:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     env:
       KEEPALIVE_URL: https://cs-5200-project.vercel.app/api/supabase/keepalive
     steps:
-      - name: Ping Supabase-backed health route
+      - uses: actions/checkout@v4
+      - name: Check database health with bounded retries
+        run: python3 scripts/check_supabase.py
+      - name: Record recovery guidance
+        if: failure()
         run: |
-          if [ -z "$KEEPALIVE_URL" ]; then
-            echo "Missing KEEPALIVE_URL."
-            exit 1
-          fi
-
-          response="$(
-          curl --fail --silent --show-error --location \
-            --retry 10 \
-            --retry-delay 30 \
-            --retry-all-errors \
-            "$KEEPALIVE_URL"
-          )"
-          echo "$response"
-          echo "$response" | grep -Eq '"status":[[:space:]]*"ok"'
+          echo 'Database health check failed. See docs/supabase-keepalive.md for project verification, restore, and scheduler checks.' >> "$GITHUB_STEP_SUMMARY"
