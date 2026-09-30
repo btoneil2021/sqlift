@@ -21,7 +21,9 @@ jobs:
     env:
       KEEPALIVE_URL: https://cs-5200-project.vercel.app/api/supabase/keepalive
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Check database health with bounded retries
         run: python3 scripts/check_supabase.py
       - name: Record recovery guidance
