@@ -19,10 +19,13 @@ def check(url, attempts=3, delay=15):
                 ["curl", "--fail", "--silent", "--show-error",
                  "--connect-timeout", "10", "--max-time", "30",
                  "--max-filesize", "4096", "--header", "Cache-Control: no-cache",
-                 "--url", url],
+                 "--write-out", "\n%{http_code}", "--url", url],
                 capture_output=True, check=True, timeout=35,
             )
-            payload = json.loads(response.stdout)
+            body, _, status = response.stdout.rpartition(b"\n")
+            if status != b"200":
+                raise ValueError("Unexpected HTTP status")
+            payload = json.loads(body)
             if (isinstance(payload, dict) and payload.get("status") == "ok"
                     and payload.get("connected") is True
                     and type(payload.get("result")) is int and payload["result"] == 1):

@@ -14,7 +14,7 @@ OK = {'status': 'ok', 'connected': True, 'result': 1}
 
 
 def response(payload):
-    return subprocess.CompletedProcess([], 0, json.dumps(payload).encode())
+    return subprocess.CompletedProcess([], 0, json.dumps(payload).encode() + b"\n200")
 
 
 class ProbeTests(unittest.TestCase):
@@ -64,9 +64,16 @@ class ProbeTests(unittest.TestCase):
     @patch('scripts.check_supabase.subprocess.run')
     def test_rejects_html_and_malformed_json_without_logging_body(self, run):
         for body in [b'<html>private diagnostic</html>', b'{"status":"ok"', b'\xff']:
-            run.return_value = subprocess.CompletedProcess([], 0, body)
+            run.return_value = subprocess.CompletedProcess([], 0, body + b'\n200')
             self.assertFalse(check(URL, attempts=1))
         self.assertNotIn('private diagnostic', self.err.getvalue())
+
+    @patch('scripts.check_supabase.subprocess.run')
+    def test_rejects_redirect_with_healthy_json_body(self, run):
+        for status in [b'301', b'302', b'307', b'308', b'204']:
+            run.return_value = subprocess.CompletedProcess(
+                [], 0, json.dumps(OK).encode() + b'\n' + status)
+            self.assertFalse(check(URL, attempts=1))
 
     @patch('scripts.check_supabase.subprocess.run')
     def test_rejects_missing_insecure_and_credential_urls(self, run):

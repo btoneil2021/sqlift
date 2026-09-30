@@ -7,7 +7,7 @@ The route opens the application's configured PostgreSQL connection, executes
 `SELECT 1`, and returns an uncached health response. It writes no application data.
 
 GitHub Actions is a secondary hourly check at minute 23, with a manual Run workflow
-option. It requires HTTP success and JSON containing `status: "ok"`,
+option. It requires HTTP 200 (redirects are rejected) and JSON containing `status: "ok"`,
 `connected: true`, and integer `result: 1`. It retries three times, limits each
 request to 30 seconds, and caps the job at five minutes. It prints neither response
 bodies nor credentials. The PR test workflow uses mocks and needs no database secrets.
@@ -32,7 +32,10 @@ existing hosting account, and does not depend on repository commits. The daily
 schedule fits [Hobby's once-per-day restriction](https://vercel.com/docs/cron-jobs/usage-and-pricing).
 Hobby execution can occur within the scheduled hour; function usage limits still
 apply. Vercel's scheduler calls the route directly, so GitHub's retry logic does
-not apply to Vercel calls. Neither scheduler can resume an already-paused database.
+not apply to Vercel calls. [Vercel does not retry failed cron invocations and may
+miss a delivery without producing a runtime log](https://vercel.com/docs/cron-jobs/manage-cron-jobs#cron-job-error-handling).
+A single daily database probe is not a guaranteed activity threshold. Neither
+scheduler can resume an already-paused database.
 
 For guaranteed exemption from inactivity pausing, Supabase recommends a paid plan.
 That requires a separate billing decision; this change does not upgrade anything.
@@ -40,7 +43,32 @@ An independent uptime monitor with failure/missed-run alerts is another option,
 but requires approval before configuring a new service or account. Failed Actions
 notifications alone cannot detect a disabled schedule.
 
+## Security and cost boundaries
+
+The route was already public and remains a read-only `SELECT 1` check. This change
+adds no authentication grants or database credentials. Its existing in-memory,
+per-IP limiter is not a global abuse or spending cap, and the shared route wrapper
+opens a database connection before checking that limiter. The server-side database
+connection has no explicit timeout; the client timeout bounds the Actions check,
+not the running Vercel function. Function duration and usage limits still apply.
+These are existing limitations, not guarantees supplied by this keepalive change.
+
+The daily cron adds roughly 30 function invocations per month (delivery can be
+duplicated); the hourly backup keeps its existing cadence. Charges or quota usage
+depend on the existing hosting plan. No plan upgrade is configured. Protecting
+the route with a new cron secret or adding an external missed-run monitor would
+require separately approved setup, and must preserve both schedulers' access.
+
 ## Verify the database before restoring or deploying
+
+First inspect any **existing** Vercel Storage/Integration resource association:
+its Open in Supabase link may identify the Supabase project without revealing
+credentials. Do not install a new integration just to discover this. Association
+alone is insufficient if a manually configured database URL overrides the
+integration. Environment-variable names and provenance can be checked without
+revealing values: the application prefers `DATABASE_URL`, then
+`SUPABASE_DATABASE_URL`, then `POSTGRES_URL`. If the effective variable's project
+cannot be resolved from non-secret metadata, leave the runtime mapping unverified.
 
 The repository uses environment-based database configuration and intentionally
 contains no real database URL. A successful health response does **not** identify
