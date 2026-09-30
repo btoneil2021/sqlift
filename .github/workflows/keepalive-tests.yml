@@ -1,0 +1,30 @@
+name: Keepalive Tests
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/supabase-keepalive.yml'
+      - '.github/workflows/keepalive-tests.yml'
+      - 'scripts/check_supabase.py'
+      - 'tests/**'
+      - 'api/**'
+      - 'requirements.txt'
+      - 'vercel.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -v

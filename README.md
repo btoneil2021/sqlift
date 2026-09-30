@@ -185,3 +185,10 @@ When anyone with write access pushes to `main`, the workflow in `.github/workflo
 Set `DATABASE_URL` in the Vercel project environment settings instead. The deploy workflow pulls it from Vercel during deployment.
 
 The repo can stay private. Teammates only need GitHub write access so their pushes can trigger the workflow
+
+### Supabase availability
+
+The database health route is called by a daily Vercel Cron, with GitHub Actions as
+an hourly backup. See [the keepalive runbook](docs/supabase-keepalive.md) for rollout,
+recovery, monitoring limitations, and local tests. The Vercel schedule only becomes
+active after production deployment; free-tier keepalives do not guarantee uptime.

@@ -8,5 +8,11 @@
       "source": "/(.*)",
       "destination": "/frontend/dist/$1"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/supabase/keepalive",
+      "schedule": "17 3 * * *"
+    }
   ]
 }
